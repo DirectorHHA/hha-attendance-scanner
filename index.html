@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <title>Hamd House Academy Attendance</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      color: #000000;
+    }
+
+    .page {
+      max-width: 600px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #ffffff;
+      padding-bottom: 30px;
+    }
+
+    .header {
+      background: #7c2f39;
+      color: #ffffff;
+      text-align: center;
+      padding: 22px 15px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 23px;
+    }
+
+    .header p {
+      margin: 7px 0 0;
+      font-size: 14px;
+    }
+
+    .section {
+      padding: 18px 20px 5px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #a6a6a6;
+      border-radius: 6px;
+      font-size: 15px;
+      background: #ffffff;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 12px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .instruction {
+      text-align: center;
+      color: #737373;
+      font-size: 14px;
+      padding: 10px 20px;
+    }
+
+    .status-bar {
+      margin: 12px 20px;
+      text-align: center;
+      padding: 10px;
+      background: #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .result {
+      margin: 18px 20px;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+    }
+
+    .result.success {
+      display: block;
+      background: #eef7ef;
+      border: 2px solid #3d7a46;
+    }
+
+    .result.late {
+      display: block;
+      background: #fff4e5;
+      border: 2px solid #b56b00;
+    }
+
+    .result.error {
+      display: block;
+      background: #fdecec;
+      border: 2px solid #a93333;
+    }
+
+    .result-title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .person-name {
+      font-size: 21px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .person-detail {
+      font-size: 16px;
+      margin: 4px 0;
+    }
+
+    .time {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .late-text {
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .manual {
+      margin: 20px;
+      padding-top: 18px;
+      border-top: 1px solid #d9d9d9;
+    }
+
+    .manual h3 {
+      margin: 0 0 8px;
+    }
+
+    .manual p {
+      font-size: 13px;
+      color: #737373;
+    }
+
+    .manual-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .manual-row input {
+      flex: 1;
+    }
+
+    .manual-row button {
+      padding: 12px 16px;
+      background: #7c2f39;
+      color: #ffffff;
+      border: 0;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .footer {
+      text-align: center;
+      color: #737373;
+      font-size: 12px;
+      padding: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <h1>HAMD HOUSE ACADEMY</h1>
+    <p>Student & Staff Attendance</p>
+  </div>
+
+  <div class="section">
+    <label for="scannerDevice">SCANNER DEVICE</label>
+
+    <select id="scannerDevice">
+      <option value="Gate Scanner 1">Gate Scanner 1</option>
+      <option value="Gate Scanner 2">Gate Scanner 2</option>
+      <option value="Admin Scanner">Admin Scanner</option>
+    </select>
+
+    <div id="reader"></div>
+  </div>
+
+  <div class="instruction">
+    Hold the QR card clearly inside the camera frame.
+  </div>
+
+  <div id="statusBar" class="status-bar">
+    Camera starting…
+  </div>
+
+  <div id="resultBox" class="result">
+    <div id="resultTitle" class="result-title"></div>
+    <div id="personName" class="person-name"></div>
+    <div id="personDetail" class="person-detail"></div>
+    <div id="resultTime" class="time"></div>
+    <div id="lateText" class="late-text"></div>
+  </div>
+
+  <div class="manual">
+    <h3>Manual QR Token Entry</h3>
+
+    <p>
+      For testing or as a temporary fallback, enter a QR token manually.
+    </p>
+
+    <div class="manual-row">
+      <input
+        type="text"
+        id="manualToken"
+        placeholder="Enter or paste QR token"
+      >
+
+      <button onclick="submitManualToken()">
+        SUBMIT
+      </button>
+    </div>
+  </div>
+
+  <div class="footer">
+    Hamd House Academy Attendance System
+  </div>
+
+</div>
+
+<script>
+
+  const API_URL =
+    "https://script.google.com/macros/s/AKfycbxn4HFRzFnAU6gMv3fNpuxQWlaZcPXQ-kV-IC57b7AAvM0nuZAcJuJn8n9zT2zbAw-Wkg/exec";
+
+  let scanLocked = false;
+
+  const scanner = new Html5Qrcode("reader");
+
+
+  function startScanner() {
+
+    const config = {
+      fps: 10,
+      qrbox: function(viewfinderWidth, viewfinderHeight) {
+
+        const size = Math.floor(
+          Math.min(
+            viewfinderWidth,
+            viewfinderHeight
+          ) * 0.72
+        );
+
+        return {
+          width: size,
+          height: size
+        };
+      }
+    };
+
+    scanner.start(
+      { facingMode: "environment" },
+      config,
+      onScanSuccess,
+      function() {}
+    )
+    .then(function() {
+
+      setStatus(
+        "READY — Scan a student or staff QR card"
+      );
+
+    })
+    .catch(function(error) {
+
+      console.error(error);
+
+      setStatus(
+        "Camera could not start: " +
+        (error && error.message
+          ? error.message
+          : String(error))
+      );
+    });
+  }
+
+
+  function onScanSuccess(decodedText) {
+
+    if (scanLocked) return;
+
+    const token =
+      String(decodedText || "").trim();
+
+    if (!token) return;
+
+    submitToken(token);
+  }
+
+
+  function submitToken(token) {
+
+    if (scanLocked) return;
+
+    scanLocked = true;
+
+    setStatus("Processing attendance…");
+
+    const scannerDevice =
+      document.getElementById("scannerDevice").value;
+
+    callAttendanceApi(
+      token,
+      scannerDevice
+    );
+  }
+
+
+  function callAttendanceApi(token, scannerDevice) {
+
+    const callbackName =
+      "hhaCallback_" +
+      Date.now() +
+      "_" +
+      Math.floor(Math.random() * 100000);
+
+    const script =
+      document.createElement("script");
+
+    const timeout =
+      setTimeout(function() {
+
+        cleanup();
+
+        showError(
+          "The attendance server did not respond."
+        );
+
+        unlockScanner();
+
+      }, 10000);
+
+
+    window[callbackName] =
+      function(result) {
+
+        cleanup();
+
+        handleAttendanceResult(result);
+      };
+
+
+    function cleanup() {
+
+      clearTimeout(timeout);
+
+      try {
+        delete window[callbackName];
+      } catch (e) {}
+
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    }
+
+
+    const url =
+      API_URL +
+      "?action=scan" +
+      "&token=" +
+      encodeURIComponent(token) +
+      "&scanner=" +
+      encodeURIComponent(scannerDevice) +
+      "&callback=" +
+      encodeURIComponent(callbackName) +
+      "&t=" +
+      Date.now();
+
+    script.src = url;
+
+    script.onerror =
+      function() {
+
+        cleanup();
+
+        showError(
+          "Unable to contact the attendance server."
+        );
+
+        unlockScanner();
+      };
+
+    document.body.appendChild(script);
+  }
+
+
+  function handleAttendanceResult(result) {
+
+    if (!result) {
+
+      showError(
+        "No response received from the attendance system."
+      );
+
+      unlockScanner();
+      return;
+    }
+
+
+    if (!result.success) {
+
+      showError(
+        result.message ||
+        "Attendance could not be recorded."
+      );
+
+      unlockScanner();
+      return;
+    }
+
+
+    const resultBox =
+      document.getElementById("resultBox");
+
+    resultBox.className = "result";
+
+    document.getElementById("personName")
+      .textContent =
+      result.fullName || "";
+
+    document.getElementById("personDetail")
+      .textContent =
+      (result.personType || "") +
+      (
+        result.classDepartment
+          ? " • " + result.classDepartment
+          : ""
+      );
+
+    document.getElementById("resultTime")
+      .textContent =
+      result.time || "";
+
+    document.getElementById("lateText")
+      .textContent = "";
+
+
+    if (result.scanType === "OUT") {
+
+      resultBox.classList.add("success");
+
+      document.getElementById("resultTitle")
+        .textContent =
+        "✓ DEPARTURE RECORDED";
+
+      setStatus(
+        "Departure recorded — ready for next scan"
+      );
+
+    } else if (result.status === "Late") {
+
+      resultBox.classList.add("late");
+
+      document.getElementById("resultTitle")
+        .textContent =
+        "⚠ LATE ARRIVAL";
+
+      document.getElementById("lateText")
+        .textContent =
+        result.minutesLate +
+        " MINUTE" +
+        (
+          result.minutesLate === 1
+            ? ""
+            : "S"
+        ) +
+        " LATE";
+
+      setStatus(
+        "Late arrival recorded — ready for next scan"
+      );
+
+    } else {
+
+      resultBox.classList.add("success");
+
+      document.getElementById("resultTitle")
+        .textContent =
+        "✓ ARRIVAL RECORDED";
+
+      document.getElementById("lateText")
+        .textContent =
+        "ON TIME";
+
+      setStatus(
+        "Arrival recorded — ready for next scan"
+      );
+    }
+
+    unlockScanner();
+  }
+
+
+  function showError(message) {
+
+    const resultBox =
+      document.getElementById("resultBox");
+
+    resultBox.className =
+      "result error";
+
+    document.getElementById("resultTitle")
+      .textContent =
+      "✕ SCAN NOT ACCEPTED";
+
+    document.getElementById("personName")
+      .textContent = "";
+
+    document.getElementById("personDetail")
+      .textContent = message;
+
+    document.getElementById("resultTime")
+      .textContent = "";
+
+    document.getElementById("lateText")
+      .textContent = "";
+
+    setStatus(
+      "Scan rejected — ready to try again"
+    );
+  }
+
+
+  function unlockScanner() {
+
+    setTimeout(function() {
+
+      scanLocked = false;
+
+    }, 2500);
+  }
+
+
+  function submitManualToken() {
+
+    const input =
+      document.getElementById("manualToken");
+
+    const token =
+      String(input.value || "").trim();
+
+    if (!token) {
+
+      showError(
+        "Please enter a QR token."
+      );
+
+      return;
+    }
+
+    input.value = "";
+
+    submitToken(token);
+  }
+
+
+  function setStatus(message) {
+
+    document.getElementById("statusBar")
+      .textContent = message;
+  }
+
+
+  window.addEventListener(
+    "load",
+    startScanner
+  );
+
+</script>
+
+</body>
+</html>
