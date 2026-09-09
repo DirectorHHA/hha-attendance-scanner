@@ -351,17 +351,17 @@
       document.createElement("script");
 
     const timeout =
-      setTimeout(function() {
+  setTimeout(function() {
 
-        cleanup();
+    cleanup();
 
-        showError(
-          "The attendance server did not respond."
-        );
+    showError(
+      "The server response is delayed. Your attendance may already have been recorded. Please do not scan again immediately."
+    );
 
-        unlockScanner();
+    unlockScanner();
 
-      }, 10000);
+  }, 25000);
 
 
     window[callbackName] =
@@ -468,18 +468,43 @@
       .textContent = "";
 
 
-    if (result.scanType === "OUT") {
+    if (
+  result.scanType === "OUT" &&
+  result.status === "Early Departure"
+) {
 
-      resultBox.classList.add("success");
+  resultBox.classList.add("late");
 
-      document.getElementById("resultTitle")
-        .textContent =
-        "✓ DEPARTURE RECORDED";
+  document.getElementById("resultTitle")
+    .textContent =
+    "⚠ EARLY DEPARTURE";
 
-      setStatus(
-        "Departure recorded — ready for next scan"
-      );
+  document.getElementById("lateText")
+    .textContent =
+    result.minutesEarly +
+    " MINUTE" +
+    (
+      result.minutesEarly === 1
+        ? ""
+        : "S"
+    ) +
+    " EARLY";
 
+  setStatus(
+    "Early departure recorded — warning issued"
+  );
+
+} else if (result.scanType === "OUT") {
+
+  resultBox.classList.add("success");
+
+  document.getElementById("resultTitle")
+    .textContent =
+    "✓ DEPARTURE RECORDED";
+
+  setStatus(
+    "Departure recorded — ready for next scan"
+  );
     } else if (result.status === "Late") {
 
       resultBox.classList.add("late");
