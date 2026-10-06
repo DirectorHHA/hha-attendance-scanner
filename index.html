@@ -311,7 +311,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.2 — Offline Queue
+      Reliable Scanner v2.3 — Offline Queue
     </div>
   </div>
 
@@ -550,7 +550,7 @@
 
 
   const RETRY_INTERVAL_MS =
-    15000;
+  30000;
 
 
   /*
@@ -580,12 +580,22 @@
 
 
   let retryTimer =
-    null;
+  null;
 
 
-  let scanner =
-    null;
+/*
+ * QUEUE WORKER MUTEX
+ *
+ * Only ONE synchronisation worker may process the
+ * local offline queue at any time.
+ */
 
+let syncWorkerRunning =
+  false;
+
+
+let scanner =
+  null;
   /*
  * CAMERA-LEVEL REPEAT PROTECTION
  *
@@ -2162,22 +2172,50 @@ if (unresolved) {
 
   async function synchronisePendingTransactions() {
 
-    if (
-      !db ||
-      !navigator.onLine
-    ) {
+  /*
+   * Never allow the online event, retry timer or
+   * startup recovery to create competing queue
+   * processors.
+   */
 
-      return;
-    }
-
-
-    const unresolved =
-      await getOldestUnresolvedTransaction();
+  if (syncWorkerRunning) {
+    return;
+  }
 
 
-    if (!unresolved) {
+  if (
+    !db ||
+    !navigator.onLine
+  ) {
 
-      if (!activeTransactionId) {
+    return;
+  }
+
+
+  syncWorkerRunning =
+    true;
+
+
+  try {
+
+    /*
+     * Process the queue serially.
+     *
+     * One transaction must completely resolve or
+     * return to PENDING before another transaction
+     * is considered.
+     */
+
+    while (navigator.onLine) {
+
+      const unresolved =
+        await getOldestUnresolvedTransaction();
+
+
+      if (!unresolved) {
+
+        activeTransactionId =
+          "";
 
         scanLocked =
           false;
@@ -2186,26 +2224,105 @@ if (unresolved) {
         setStatus(
           "READY — Scan a student or staff QR card"
         );
+
+
+        break;
       }
 
 
-      return;
+      activeTransactionId =
+        unresolved.transactionId;
+
+      scanLocked =
+        true;
+
+
+      await processLocalTransaction(
+        unresolved.transactionId
+      );
+
+
+      /*
+       * Re-read the transaction after processing.
+       */
+
+      const updated =
+        await getLocalTransaction(
+          unresolved.transactionId
+        );
+
+
+      if (!updated) {
+        continue;
+      }
+
+
+      /*
+       * A resolved transaction can be removed from
+       * consideration and the worker may proceed to
+       * the next queued scan.
+       */
+
+      if (
+        updated.status === "SYNCED" ||
+        updated.status === "REJECTED" ||
+        updated.status === "ATTENTION"
+      ) {
+
+        continue;
+      }
+
+
+      /*
+       * If it remains unresolved, do NOT spin on it.
+       * Leave it safely queued for a later retry.
+       */
+
+      activeTransactionId =
+        updated.transactionId;
+
+
+      showPendingTransaction(
+        updated,
+        "SCAN SAVED — WAITING TO SYNC"
+      );
+
+
+      setStatus(
+        "Server confirmation delayed — scan remains safely queued",
+        "waiting"
+      );
+
+
+      break;
     }
 
 
-    activeTransactionId =
-      unresolved.transactionId;
+  } catch (
+    error
+  ) {
 
-
-    scanLocked =
-      true;
-
-
-    await processLocalTransaction(
-      unresolved.transactionId
+    console.error(
+      "Queue synchronisation error:",
+      error
     );
-  }
 
+
+    setStatus(
+      "Saved scans remain queued — synchronisation will retry",
+      "waiting"
+    );
+
+
+  } finally {
+
+    syncWorkerRunning =
+      false;
+
+
+    await updateRegistryCounts();
+  }
+}
 
   function scheduleRetryLoop() {
 
@@ -2248,13 +2365,27 @@ if (unresolved) {
 
 
   /*
-   * Give the user a brief opportunity to see the
-   * confirmed result, then automatically process the
-   * next saved offline transaction.
+   * Do NOT start another synchronisation process
+   * here.
+   *
+   * The single queue worker owns queue progression.
    */
 
   setTimeout(
     async function() {
+
+      await updateRegistryCounts();
+
+
+      /*
+       * If the queue worker is active, leave control
+       * with it.
+       */
+
+      if (syncWorkerRunning) {
+        return;
+      }
+
 
       const unresolved =
         await getOldestUnresolvedTransaction();
@@ -2265,61 +2396,41 @@ if (unresolved) {
         navigator.onLine
       ) {
 
-        activeTransactionId =
-          unresolved.transactionId;
-
-        scanLocked =
-          true;
-
-
         setStatus(
-          "Synchronising saved scans…",
-          "processing"
+          "Saved attendance waiting to synchronise",
+          "waiting"
         );
-
-
-        await processLocalTransaction(
-          unresolved.transactionId
-        );
-
 
         return;
       }
 
-
-      /*
-       * If unresolved records remain because the
-       * device is still offline, scanning must remain
-       * available.
-       */
 
       if (
         unresolved &&
         !navigator.onLine
       ) {
 
-        activeTransactionId =
-          "";
-
         scanLocked =
           false;
 
+        activeTransactionId =
+          "";
+
 
         setStatus(
-          "OFFLINE — READY FOR NEXT QR. Saved scans remain safely queued.",
+          "OFFLINE — READY FOR NEXT PERSON",
           "waiting"
         );
-
 
         return;
       }
 
 
-      activeTransactionId =
-        "";
-
       scanLocked =
         false;
+
+      activeTransactionId =
+        "";
 
 
       setStatus(
@@ -2327,7 +2438,7 @@ if (unresolved) {
       );
 
     },
-    1500
+    1200
   );
 }
 
