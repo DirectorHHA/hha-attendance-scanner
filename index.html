@@ -311,7 +311,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.0
+      Reliable Scanner v2.1 — Offline Queue
     </div>
   </div>
 
@@ -601,54 +601,73 @@
       await updateRegistryCounts();
 
 
-      const unresolved =
-        await getOldestUnresolvedTransaction();
+     const unresolved =
+  await getOldestUnresolvedTransaction();
 
 
-      if (unresolved) {
+if (unresolved) {
 
-        activeTransactionId =
-          unresolved.transactionId;
+  /*
+   * If ONLINE, lock while we synchronise the oldest
+   * pending transaction.
+   *
+   * If OFFLINE, leave scanning available so multiple
+   * people can continue to be captured locally.
+   */
 
-        scanLocked =
-          true;
+  if (navigator.onLine) {
 
+    activeTransactionId =
+      unresolved.transactionId;
 
-        showPendingTransaction(
-          unresolved,
-          navigator.onLine
-            ? "VERIFYING SAVED SCAN"
-            : "SCAN SAFELY SAVED"
-        );
-
-
-        if (navigator.onLine) {
-
-          setStatus(
-            "A saved scan is awaiting confirmation — DO NOT RESCAN",
-            "waiting"
-          );
+    scanLocked =
+      true;
 
 
-          setTimeout(
-            synchronisePendingTransactions,
-            500
-          );
+    showPendingTransaction(
+      unresolved,
+      "VERIFYING SAVED SCAN"
+    );
 
-        } else {
 
-          setStatus(
-            "Offline — saved scan will sync automatically when connection returns",
-            "waiting"
-          );
-        }
+    setStatus(
+      "Synchronising saved attendance — please wait",
+      "waiting"
+    );
 
-      } else {
 
-        setStatus(
-          "Starting camera…"
-        );
-      }
+    setTimeout(
+      synchronisePendingTransactions,
+      500
+    );
+
+  } else {
+
+    activeTransactionId =
+      "";
+
+    scanLocked =
+      false;
+
+
+    showPendingTransaction(
+      unresolved,
+      "OFFLINE SCANS SAFELY STORED"
+    );
+
+
+    setStatus(
+      "OFFLINE — READY FOR NEXT QR. Saved scans will sync automatically.",
+      "waiting"
+    );
+  }
+
+} else {
+
+  setStatus(
+    "Starting camera…"
+  );
+}
 
 
       startScanner();
@@ -1209,16 +1228,59 @@
       );
 
 
-      if (!navigator.onLine) {
+     if (!navigator.onLine) {
 
-        setStatus(
-          "Offline — scan safely saved on this device. DO NOT RESCAN.",
-          "waiting"
-        );
+  /*
+   * OFFLINE MULTI-SCAN MODE
+   *
+   * This transaction is already safely committed
+   * to IndexedDB.
+   *
+   * Release the camera for the NEXT PERSON while
+   * retaining this transaction in the pending queue.
+   */
+
+  showPendingTransaction(
+    transaction,
+    "✓ SCAN SAVED OFFLINE"
+  );
 
 
-        return;
-      }
+  setStatus(
+    "Saved offline — ready for NEXT person",
+    "waiting"
+  );
+
+
+  /*
+   * Clear only the active UI transaction.
+   * The transaction itself remains safely stored
+   * in IndexedDB as PENDING.
+   */
+
+  activeTransactionId =
+    "";
+
+
+  setTimeout(
+    function() {
+
+      scanLocked =
+        false;
+
+
+      setStatus(
+        "OFFLINE — READY FOR NEXT QR. Each scan will be saved locally.",
+        "waiting"
+      );
+
+    },
+    1200
+  );
+
+
+  return;
+}
 
 
       setStatus(
@@ -2092,53 +2154,102 @@
   // ====================================================
 
   function finishResolvedTransaction(
+  transactionId
+) {
+
+  if (
+    activeTransactionId ===
     transactionId
   ) {
 
-    if (
-      activeTransactionId ===
-      transactionId
-    ) {
-
-      activeTransactionId =
-        "";
-    }
+    activeTransactionId =
+      "";
+  }
 
 
-    setTimeout(
-      async function() {
+  /*
+   * Give the user a brief opportunity to see the
+   * confirmed result, then automatically process the
+   * next saved offline transaction.
+   */
 
-        const unresolved =
-          await getOldestUnresolvedTransaction();
+  setTimeout(
+    async function() {
 
-
-        if (unresolved) {
-
-          activeTransactionId =
-            unresolved.transactionId;
-
-          scanLocked =
-            true;
+      const unresolved =
+        await getOldestUnresolvedTransaction();
 
 
-          await synchronisePendingTransactions();
+      if (
+        unresolved &&
+        navigator.onLine
+      ) {
 
-          return;
-        }
+        activeTransactionId =
+          unresolved.transactionId;
 
+        scanLocked =
+          true;
+
+
+        setStatus(
+          "Synchronising saved scans…",
+          "processing"
+        );
+
+
+        await processLocalTransaction(
+          unresolved.transactionId
+        );
+
+
+        return;
+      }
+
+
+      /*
+       * If unresolved records remain because the
+       * device is still offline, scanning must remain
+       * available.
+       */
+
+      if (
+        unresolved &&
+        !navigator.onLine
+      ) {
+
+        activeTransactionId =
+          "";
 
         scanLocked =
           false;
 
 
         setStatus(
-          "READY — Scan a student or staff QR card"
+          "OFFLINE — READY FOR NEXT QR. Saved scans remain safely queued.",
+          "waiting"
         );
 
-      },
-      3000
-    );
-  }
+
+        return;
+      }
+
+
+      activeTransactionId =
+        "";
+
+      scanLocked =
+        false;
+
+
+      setStatus(
+        "READY — Scan a student or staff QR card"
+      );
+
+    },
+    1500
+  );
+}
 
 
   // ====================================================
