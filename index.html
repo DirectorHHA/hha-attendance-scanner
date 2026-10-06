@@ -311,7 +311,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.1 — Offline Queue
+      Reliable Scanner v2.2 — Offline Queue
     </div>
   </div>
 
@@ -559,8 +559,8 @@
    * is unresolved.
    */
 
-  const LOCAL_QR_COOLDOWN_MS =
-    60000;
+ const LOCAL_QR_COOLDOWN_MS =
+  90000;
 
 
   // ====================================================
@@ -586,6 +586,23 @@
   let scanner =
     null;
 
+  /*
+ * CAMERA-LEVEL REPEAT PROTECTION
+ *
+ * IndexedDB remains the durable duplicate defence.
+ * This additional memory lock stops repeated camera
+ * callbacks from creating unnecessary transactions
+ * while the same QR remains in front of the lens.
+ */
+
+let lastCameraToken =
+  "";
+
+let lastCameraTokenAt =
+  0;
+
+const CAMERA_REPEAT_BLOCK_MS =
+  90000;
 
   // ====================================================
   // STARTUP
@@ -1097,30 +1114,66 @@ if (unresolved) {
 
 
   async function onScanSuccess(
-    decodedText
-  ) {
+  decodedText
+) {
 
-    if (scanLocked) {
-      return;
-    }
-
-
-    const token =
-      String(
-        decodedText || ""
-      ).trim();
-
-
-    if (!token) {
-      return;
-    }
-
-
-    await captureScan(
-      token
-    );
+  if (scanLocked) {
+    return;
   }
 
+
+  const token =
+    String(
+      decodedText || ""
+    ).trim();
+
+
+  if (!token) {
+    return;
+  }
+
+
+  const now =
+    Date.now();
+
+
+  /*
+   * Stop repeated camera callbacks for the same
+   * physical QR before they can create another
+   * transaction.
+   */
+
+  if (
+    token === lastCameraToken &&
+    (
+      now -
+      lastCameraTokenAt
+    ) < CAMERA_REPEAT_BLOCK_MS
+  ) {
+
+    return;
+  }
+
+
+  /*
+   * Reserve this QR immediately.
+   *
+   * Do this BEFORE awaiting IndexedDB so a second
+   * camera callback cannot slip through while the
+   * first capture is being stored.
+   */
+
+  lastCameraToken =
+    token;
+
+  lastCameraTokenAt =
+    now;
+
+
+  await captureScan(
+    token
+  );
+}
 
   // ====================================================
   // CAPTURE SCAN LOCALLY FIRST
@@ -1274,9 +1327,9 @@ if (unresolved) {
 
 
   setStatus(
-    "Saved offline — ready for NEXT person",
-    "waiting"
-  );
+  "QR SAVED OFFLINE — move this card away from the camera",
+  "waiting"
+);
 
 
   /*
@@ -1297,9 +1350,9 @@ if (unresolved) {
 
 
       setStatus(
-        "OFFLINE — READY FOR NEXT QR. Each scan will be saved locally.",
-        "waiting"
-      );
+  "OFFLINE — READY FOR NEXT PERSON",
+  "waiting"
+);
 
     },
     1200
@@ -2399,18 +2452,15 @@ if (unresolved) {
 
 
     const attention =
-      records.filter(
-        function(record) {
+  records.filter(
+    function(record) {
 
-          return (
-            record.status ===
-              "ATTENTION" ||
-            record.status ===
-              "REJECTED"
-          );
-        }
-      ).length;
-
+      return (
+        record.status ===
+        "ATTENTION"
+      );
+    }
+  ).length;
 
     document
       .getElementById(
