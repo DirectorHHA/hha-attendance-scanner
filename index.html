@@ -452,6 +452,33 @@
       Local scan registry starting…
     </div>
 
+<div style="text-align:center; margin-top:12px;">
+  <button
+    type="button"
+    onclick="toggleRegistryDetails()"
+    style="
+      padding:10px 16px;
+      background:#737373;
+      color:#ffffff;
+      border:0;
+      border-radius:6px;
+      font-weight:bold;
+      cursor:pointer;
+    "
+  >
+    VIEW REGISTRY DETAILS
+  </button>
+</div>
+
+<div
+  id="registryDetails"
+  style="
+    display:none;
+    margin-top:14px;
+    font-size:12px;
+  "
+></div>
+    
   </div>
 
   <div class="manual">
@@ -3102,7 +3129,293 @@ if (unresolved) {
       return "";
     }
   }
+// ====================================================
+// REGISTRY DIAGNOSTIC VIEW
+// ====================================================
 
+async function toggleRegistryDetails() {
+
+  const box =
+    document.getElementById(
+      "registryDetails"
+    );
+
+
+  if (
+    box.style.display === "block"
+  ) {
+
+    box.style.display =
+      "none";
+
+    return;
+  }
+
+
+  box.style.display =
+    "block";
+
+
+  box.innerHTML =
+    "<strong>Loading registry…</strong>";
+
+
+  try {
+
+    const records =
+      await getAllLocalTransactions();
+
+
+    records.sort(
+      function(a, b) {
+
+        return (
+          Number(
+            b.capturedAtMs || 0
+          ) -
+          Number(
+            a.capturedAtMs || 0
+          )
+        );
+      }
+    );
+
+
+    if (!records.length) {
+
+      box.innerHTML =
+        "No locally stored scan transactions.";
+
+      return;
+    }
+
+
+    let html = "";
+
+
+    records.forEach(
+      function(record) {
+
+        const backend =
+          record.backendResult ||
+          {};
+
+
+        const attendance =
+          backend.attendance ||
+          backend ||
+          {};
+
+
+        const status =
+          String(
+            record.status || "UNKNOWN"
+          );
+
+
+        const name =
+          String(
+            attendance.fullName ||
+            ""
+          );
+
+
+        const message =
+          String(
+            attendance.message ||
+            backend.message ||
+            ""
+          );
+
+
+        let borderColour =
+          "#a6a6a6";
+
+
+        if (
+          status === "SYNCED"
+        ) {
+
+          borderColour =
+            "#3d7a46";
+
+        } else if (
+          status === "PENDING" ||
+          status === "VERIFYING" ||
+          status === "BUSY"
+        ) {
+
+          borderColour =
+            "#4779a8";
+
+        } else if (
+          status === "REJECTED"
+        ) {
+
+          borderColour =
+            "#b56b00";
+
+        } else if (
+          status === "ATTENTION"
+        ) {
+
+          borderColour =
+            "#a93333";
+        }
+
+
+        html +=
+          "<div style='" +
+          "border-left:5px solid " +
+          escapeRegistryHtml(
+            borderColour
+          ) +
+          ";" +
+          "background:#ffffff;" +
+          "border-top:1px solid #e3e3e3;" +
+          "border-right:1px solid #e3e3e3;" +
+          "border-bottom:1px solid #e3e3e3;" +
+          "border-radius:6px;" +
+          "padding:10px;" +
+          "margin-bottom:9px;" +
+          "'>" +
+
+          "<div style='font-weight:bold;font-size:14px;'>" +
+          escapeRegistryHtml(
+            status
+          ) +
+          "</div>" +
+
+          (
+            name
+              ? "<div style='font-weight:bold;margin-top:4px;'>" +
+                escapeRegistryHtml(
+                  name
+                ) +
+                "</div>"
+              : ""
+          ) +
+
+          "<div style='margin-top:4px;'>" +
+          "Captured: " +
+          escapeRegistryHtml(
+            formatRegistryDate(
+              record.capturedAtMs
+            )
+          ) +
+          "</div>" +
+
+          "<div>" +
+          "Attempts: " +
+          escapeRegistryHtml(
+            String(
+              record.attempts || 0
+            )
+          ) +
+          "</div>" +
+
+          (
+            message
+              ? "<div style='margin-top:5px;'><strong>Message:</strong> " +
+                escapeRegistryHtml(
+                  message
+                ) +
+                "</div>"
+              : ""
+          ) +
+
+          "<div style='margin-top:6px;color:#737373;word-break:break-all;'>" +
+          escapeRegistryHtml(
+            record.transactionId ||
+            ""
+          ) +
+          "</div>" +
+
+          "</div>";
+      }
+    );
+
+
+    box.innerHTML =
+      html;
+
+
+  } catch (
+    error
+  ) {
+
+    console.error(
+      "Registry diagnostic error:",
+      error
+    );
+
+
+    box.innerHTML =
+      "<strong>Registry could not be read.</strong>";
+  }
+}
+
+
+function escapeRegistryHtml(
+  value
+) {
+
+  return String(
+    value == null
+      ? ""
+      : value
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+}
+
+
+function formatRegistryDate(
+  milliseconds
+) {
+
+  const value =
+    Number(
+      milliseconds || 0
+    );
+
+
+  if (!value) {
+    return "";
+  }
+
+
+  try {
+
+    return new Date(
+      value
+    ).toLocaleString();
+
+  } catch (
+    ignore
+  ) {
+
+    return "";
+  }
+}
 </script>
 
 </body>
