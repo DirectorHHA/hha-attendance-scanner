@@ -2,14 +2,23 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  >
+
+  <meta
+    name="theme-color"
+    content="#7c2f39"
+  >
 
   <title>Hamd House Academy Attendance</title>
 
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
+
     * {
       box-sizing: border-box;
     }
@@ -44,6 +53,29 @@
     .header p {
       margin: 7px 0 0;
       font-size: 14px;
+    }
+
+    .version {
+      margin-top: 7px;
+      font-size: 11px;
+      opacity: 0.85;
+    }
+
+    .network-bar {
+      text-align: center;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .network-online {
+      background: #eef7ef;
+      color: #2f6638;
+    }
+
+    .network-offline {
+      background: #fff4e5;
+      color: #8a5200;
     }
 
     .section {
@@ -84,10 +116,21 @@
     .status-bar {
       margin: 12px 20px;
       text-align: center;
-      padding: 10px;
+      padding: 11px;
       background: #d9d9d9;
       border-radius: 6px;
       font-size: 14px;
+      font-weight: bold;
+    }
+
+    .status-processing {
+      background: #eef3fb;
+      color: #315b87;
+    }
+
+    .status-waiting {
+      background: #fff4e5;
+      color: #8a5200;
     }
 
     .result {
@@ -105,6 +148,18 @@
     }
 
     .result.late {
+      display: block;
+      background: #fff4e5;
+      border: 2px solid #b56b00;
+    }
+
+    .result.pending {
+      display: block;
+      background: #eef3fb;
+      border: 2px solid #4779a8;
+    }
+
+    .result.warning {
       display: block;
       background: #fff4e5;
       border: 2px solid #b56b00;
@@ -145,6 +200,60 @@
       margin-top: 8px;
     }
 
+    .transaction-text {
+      margin-top: 12px;
+      font-size: 11px;
+      color: #737373;
+      word-break: break-all;
+    }
+
+    .sync-panel {
+      margin: 18px 20px;
+      padding: 16px;
+      border: 1px solid #d9d9d9;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    .sync-panel h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    .sync-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .sync-item {
+      text-align: center;
+      padding: 10px 5px;
+      background: #ffffff;
+      border-radius: 6px;
+      border: 1px solid #e3e3e3;
+    }
+
+    .sync-number {
+      display: block;
+      font-size: 21px;
+      font-weight: bold;
+    }
+
+    .sync-label {
+      display: block;
+      margin-top: 3px;
+      font-size: 11px;
+      color: #737373;
+    }
+
+    .sync-message {
+      margin-top: 11px;
+      font-size: 12px;
+      color: #737373;
+      text-align: center;
+    }
+
     .manual {
       margin: 20px;
       padding-top: 18px;
@@ -179,12 +288,18 @@
       cursor: pointer;
     }
 
+    .manual-row button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .footer {
       text-align: center;
       color: #737373;
       font-size: 12px;
       padding: 15px;
     }
+
   </style>
 </head>
 
@@ -195,54 +310,176 @@
   <div class="header">
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
+    <div class="version">
+      Reliable Scanner v2.0
+    </div>
+  </div>
+
+  <div
+    id="networkBar"
+    class="network-bar network-online"
+  >
+    ● ONLINE
   </div>
 
   <div class="section">
-    <label for="scannerDevice">SCANNER DEVICE</label>
+
+    <label for="scannerDevice">
+      SCANNER DEVICE
+    </label>
 
     <select id="scannerDevice">
-      <option value="Gate Scanner 1">Gate Scanner 1</option>
-      <option value="Gate Scanner 2">Gate Scanner 2</option>
-      <option value="Admin Scanner">Admin Scanner</option>
+      <option value="Gate Scanner 1">
+        Gate Scanner 1
+      </option>
+
+      <option value="Gate Scanner 2">
+        Gate Scanner 2
+      </option>
+
+      <option value="Admin Scanner">
+        Admin Scanner
+      </option>
     </select>
 
     <div id="reader"></div>
+
   </div>
 
   <div class="instruction">
     Hold the QR card clearly inside the camera frame.
+    <br>
+    <strong>
+      Scan once only. The scanner will confirm the result.
+    </strong>
   </div>
 
-  <div id="statusBar" class="status-bar">
-    Camera starting…
+  <div
+    id="statusBar"
+    class="status-bar"
+  >
+    Initialising scanner…
   </div>
 
-  <div id="resultBox" class="result">
-    <div id="resultTitle" class="result-title"></div>
-    <div id="personName" class="person-name"></div>
-    <div id="personDetail" class="person-detail"></div>
-    <div id="resultTime" class="time"></div>
-    <div id="lateText" class="late-text"></div>
+  <div
+    id="resultBox"
+    class="result"
+  >
+
+    <div
+      id="resultTitle"
+      class="result-title"
+    ></div>
+
+    <div
+      id="personName"
+      class="person-name"
+    ></div>
+
+    <div
+      id="personDetail"
+      class="person-detail"
+    ></div>
+
+    <div
+      id="resultTime"
+      class="time"
+    ></div>
+
+    <div
+      id="lateText"
+      class="late-text"
+    ></div>
+
+    <div
+      id="transactionText"
+      class="transaction-text"
+    ></div>
+
+  </div>
+
+  <div class="sync-panel">
+
+    <h3>SCAN REGISTRY</h3>
+
+    <div class="sync-grid">
+
+      <div class="sync-item">
+        <span
+          id="syncedCount"
+          class="sync-number"
+        >
+          0
+        </span>
+
+        <span class="sync-label">
+          SYNCED
+        </span>
+      </div>
+
+      <div class="sync-item">
+        <span
+          id="pendingCount"
+          class="sync-number"
+        >
+          0
+        </span>
+
+        <span class="sync-label">
+          PENDING
+        </span>
+      </div>
+
+      <div class="sync-item">
+        <span
+          id="attentionCount"
+          class="sync-number"
+        >
+          0
+        </span>
+
+        <span class="sync-label">
+          ATTENTION
+        </span>
+      </div>
+
+    </div>
+
+    <div
+      id="syncMessage"
+      class="sync-message"
+    >
+      Local scan registry starting…
+    </div>
+
   </div>
 
   <div class="manual">
+
     <h3>Manual QR Token Entry</h3>
 
     <p>
-      For testing or as a temporary fallback, enter a QR token manually.
+      For testing or as a temporary fallback,
+      enter a QR token manually.
     </p>
 
     <div class="manual-row">
+
       <input
         type="text"
         id="manualToken"
         placeholder="Enter or paste QR token"
       >
 
-      <button onclick="submitManualToken()">
+      <button
+        id="manualButton"
+        onclick="submitManualToken()"
+      >
         SUBMIT
       </button>
+
     </div>
+
   </div>
 
   <div class="footer">
@@ -253,376 +490,2507 @@
 
 <script>
 
+  // ====================================================
+  // CONFIGURATION
+  // ====================================================
+
   const API_URL =
     "https://script.google.com/macros/s/AKfycbwaf9whfdcgbS8NgulecjKObihESdn05B3RhX8ERO5rR0R8ccpelLliGmuVy8l8xzXsJg/exec";
 
-  let scanLocked = false;
 
-  const scanner = new Html5Qrcode("reader");
+  const DB_NAME =
+    "HHA_Attendance_Scanner_V2";
 
+
+  const DB_VERSION =
+    1;
+
+
+  const STORE_NAME =
+    "scanTransactions";
+
+
+  const INITIAL_RESPONSE_TIMEOUT_MS =
+    15000;
+
+
+  const VERIFY_INTERVAL_MS =
+    5000;
+
+
+  const VERIFY_ATTEMPTS =
+    6;
+
+
+  const RETRY_INTERVAL_MS =
+    15000;
+
+
+  /*
+   * The same physical QR cannot start another
+   * transaction while its earlier transaction
+   * is unresolved.
+   */
+
+  const LOCAL_QR_COOLDOWN_MS =
+    60000;
+
+
+  // ====================================================
+  // STATE
+  // ====================================================
+
+  let db =
+    null;
+
+
+  let scanLocked =
+    false;
+
+
+  let activeTransactionId =
+    "";
+
+
+  let retryTimer =
+    null;
+
+
+  let scanner =
+    null;
+
+
+  // ====================================================
+  // STARTUP
+  // ====================================================
+
+  window.addEventListener(
+    "load",
+    initialiseScannerApp
+  );
+
+
+  async function initialiseScannerApp() {
+
+    updateNetworkStatus();
+
+
+    window.addEventListener(
+      "online",
+      function() {
+
+        updateNetworkStatus();
+
+        synchronisePendingTransactions();
+      }
+    );
+
+
+    window.addEventListener(
+      "offline",
+      updateNetworkStatus
+    );
+
+
+    try {
+
+      db =
+        await openScanDatabase();
+
+
+      await updateRegistryCounts();
+
+
+      const unresolved =
+        await getOldestUnresolvedTransaction();
+
+
+      if (unresolved) {
+
+        activeTransactionId =
+          unresolved.transactionId;
+
+        scanLocked =
+          true;
+
+
+        showPendingTransaction(
+          unresolved,
+          navigator.onLine
+            ? "VERIFYING SAVED SCAN"
+            : "SCAN SAFELY SAVED"
+        );
+
+
+        if (navigator.onLine) {
+
+          setStatus(
+            "A saved scan is awaiting confirmation — DO NOT RESCAN",
+            "waiting"
+          );
+
+
+          setTimeout(
+            synchronisePendingTransactions,
+            500
+          );
+
+        } else {
+
+          setStatus(
+            "Offline — saved scan will sync automatically when connection returns",
+            "waiting"
+          );
+        }
+
+      } else {
+
+        setStatus(
+          "Starting camera…"
+        );
+      }
+
+
+      startScanner();
+
+
+      scheduleRetryLoop();
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "Scanner startup error:",
+        error
+      );
+
+
+      showCriticalError(
+        "The local scan registry could not start. Attendance scanning has been disabled to prevent lost scans."
+      );
+    }
+  }
+
+
+  // ====================================================
+  // INDEXEDDB
+  // ====================================================
+
+  function openScanDatabase() {
+
+    return new Promise(
+      function(
+        resolve,
+        reject
+      ) {
+
+        const request =
+          indexedDB.open(
+            DB_NAME,
+            DB_VERSION
+          );
+
+
+        request.onupgradeneeded =
+          function(event) {
+
+            const database =
+              event.target.result;
+
+
+            if (
+              !database.objectStoreNames.contains(
+                STORE_NAME
+              )
+            ) {
+
+              const store =
+                database.createObjectStore(
+                  STORE_NAME,
+                  {
+                    keyPath:
+                      "transactionId"
+                  }
+                );
+
+
+              store.createIndex(
+                "status",
+                "status",
+                {
+                  unique: false
+                }
+              );
+
+
+              store.createIndex(
+                "token",
+                "token",
+                {
+                  unique: false
+                }
+              );
+
+
+              store.createIndex(
+                "capturedAtMs",
+                "capturedAtMs",
+                {
+                  unique: false
+                }
+              );
+            }
+          };
+
+
+        request.onsuccess =
+          function(event) {
+
+            resolve(
+              event.target.result
+            );
+          };
+
+
+        request.onerror =
+          function() {
+
+            reject(
+              request.error
+            );
+          };
+      }
+    );
+  }
+
+
+  function saveLocalTransaction(
+    transaction
+  ) {
+
+    return new Promise(
+      function(
+        resolve,
+        reject
+      ) {
+
+        if (!db) {
+
+          reject(
+            new Error(
+              "Local scan registry is unavailable."
+            )
+          );
+
+          return;
+        }
+
+
+        const tx =
+          db.transaction(
+            STORE_NAME,
+            "readwrite"
+          );
+
+
+        const store =
+          tx.objectStore(
+            STORE_NAME
+          );
+
+
+        store.put(
+          transaction
+        );
+
+
+        tx.oncomplete =
+          function() {
+
+            resolve(
+              transaction
+            );
+          };
+
+
+        tx.onerror =
+          function() {
+
+            reject(
+              tx.error
+            );
+          };
+      }
+    );
+  }
+
+
+  function getLocalTransaction(
+    transactionId
+  ) {
+
+    return new Promise(
+      function(
+        resolve,
+        reject
+      ) {
+
+        const tx =
+          db.transaction(
+            STORE_NAME,
+            "readonly"
+          );
+
+
+        const request =
+          tx
+            .objectStore(
+              STORE_NAME
+            )
+            .get(
+              transactionId
+            );
+
+
+        request.onsuccess =
+          function() {
+
+            resolve(
+              request.result ||
+              null
+            );
+          };
+
+
+        request.onerror =
+          function() {
+
+            reject(
+              request.error
+            );
+          };
+      }
+    );
+  }
+
+
+  function getAllLocalTransactions() {
+
+    return new Promise(
+      function(
+        resolve,
+        reject
+      ) {
+
+        const tx =
+          db.transaction(
+            STORE_NAME,
+            "readonly"
+          );
+
+
+        const request =
+          tx
+            .objectStore(
+              STORE_NAME
+            )
+            .getAll();
+
+
+        request.onsuccess =
+          function() {
+
+            resolve(
+              request.result ||
+              []
+            );
+          };
+
+
+        request.onerror =
+          function() {
+
+            reject(
+              request.error
+            );
+          };
+      }
+    );
+  }
+
+
+  async function getOldestUnresolvedTransaction() {
+
+    const records =
+      await getAllLocalTransactions();
+
+
+    const unresolved =
+      records
+        .filter(
+          function(record) {
+
+            return (
+              record.status ===
+                "PENDING" ||
+              record.status ===
+                "VERIFYING" ||
+              record.status ===
+                "BUSY"
+            );
+          }
+        )
+        .sort(
+          function(a, b) {
+
+            return (
+              Number(
+                a.capturedAtMs || 0
+              ) -
+              Number(
+                b.capturedAtMs || 0
+              )
+            );
+          }
+        );
+
+
+    return (
+      unresolved.length
+        ? unresolved[0]
+        : null
+    );
+  }
+
+
+  // ====================================================
+  // CAMERA
+  // ====================================================
 
   function startScanner() {
 
+    scanner =
+      new Html5Qrcode(
+        "reader"
+      );
+
+
     const config = {
+
       fps: 10,
-      qrbox: function(viewfinderWidth, viewfinderHeight) {
 
-        const size = Math.floor(
-          Math.min(
-            viewfinderWidth,
-            viewfinderHeight
-          ) * 0.72
-        );
+      qrbox:
+        function(
+          viewfinderWidth,
+          viewfinderHeight
+        ) {
 
-        return {
-          width: size,
-          height: size
-        };
-      }
+          const size =
+            Math.floor(
+              Math.min(
+                viewfinderWidth,
+                viewfinderHeight
+              ) * 0.72
+            );
+
+
+          return {
+            width: size,
+            height: size
+          };
+        }
     };
 
-    scanner.start(
-      { facingMode: "environment" },
-      config,
-      onScanSuccess,
-      function() {}
-    )
-    .then(function() {
 
-      setStatus(
-        "READY — Scan a student or staff QR card"
+    scanner
+      .start(
+        {
+          facingMode:
+            "environment"
+        },
+
+        config,
+
+        onScanSuccess,
+
+        function() {}
+      )
+      .then(
+        function() {
+
+          if (!scanLocked) {
+
+            setStatus(
+              "READY — Scan a student or staff QR card"
+            );
+          }
+        }
+      )
+      .catch(
+        function(error) {
+
+          console.error(
+            error
+          );
+
+
+          setStatus(
+            "Camera could not start: " +
+            (
+              error &&
+              error.message
+                ? error.message
+                : String(error)
+            )
+          );
+        }
       );
-
-    })
-    .catch(function(error) {
-
-      console.error(error);
-
-      setStatus(
-        "Camera could not start: " +
-        (error && error.message
-          ? error.message
-          : String(error))
-      );
-    });
   }
 
 
-  function onScanSuccess(decodedText) {
+  async function onScanSuccess(
+    decodedText
+  ) {
 
-    if (scanLocked) return;
-
-    const token =
-      String(decodedText || "").trim();
-
-    if (!token) return;
-
-    submitToken(token);
-  }
-
-
-  function submitToken(token) {
-
-    if (scanLocked) return;
-
-    scanLocked = true;
-
-    setStatus("Processing attendance…");
-
-    const scannerDevice =
-      document.getElementById("scannerDevice").value;
-
-    callAttendanceApi(
-      token,
-      scannerDevice
-    );
-  }
-
-
-  function callAttendanceApi(token, scannerDevice) {
-
-    const callbackName =
-      "hhaCallback_" +
-      Date.now() +
-      "_" +
-      Math.floor(Math.random() * 100000);
-
-    const script =
-      document.createElement("script");
-
-    const timeout =
-  setTimeout(function() {
-
-    cleanup();
-
-    showError(
-      "The server response is delayed. Your attendance may already have been recorded. Please do not scan again immediately."
-    );
-
-    unlockScanner();
-
-  }, 25000);
-
-
-    window[callbackName] =
-      function(result) {
-
-        cleanup();
-
-        handleAttendanceResult(result);
-      };
-
-
-    function cleanup() {
-
-      clearTimeout(timeout);
-
-      try {
-        delete window[callbackName];
-      } catch (e) {}
-
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    }
-
-
-    const url =
-      API_URL +
-      "?action=scan" +
-      "&token=" +
-      encodeURIComponent(token) +
-      "&scanner=" +
-      encodeURIComponent(scannerDevice) +
-      "&callback=" +
-      encodeURIComponent(callbackName) +
-      "&t=" +
-      Date.now();
-
-    script.src = url;
-
-    script.onerror =
-      function() {
-
-        cleanup();
-
-        showError(
-          "Unable to contact the attendance server."
-        );
-
-        unlockScanner();
-      };
-
-    document.body.appendChild(script);
-  }
-
-
-  function handleAttendanceResult(result) {
-
-    if (!result) {
-
-      showError(
-        "No response received from the attendance system."
-      );
-
-      unlockScanner();
+    if (scanLocked) {
       return;
     }
 
 
-    if (!result.success) {
+    const token =
+      String(
+        decodedText || ""
+      ).trim();
 
-      showError(
-        result.message ||
-        "Attendance could not be recorded."
+
+    if (!token) {
+      return;
+    }
+
+
+    await captureScan(
+      token
+    );
+  }
+
+
+  // ====================================================
+  // CAPTURE SCAN LOCALLY FIRST
+  // ====================================================
+
+  async function captureScan(
+    token
+  ) {
+
+    if (
+      scanLocked ||
+      !db
+    ) {
+
+      return;
+    }
+
+
+    scanLocked =
+      true;
+
+
+    try {
+
+      const recent =
+        await findRecentTokenTransaction(
+          token
+        );
+
+
+      if (recent) {
+
+        showWarning(
+          "QR ALREADY CAPTURED",
+          "This QR was recently scanned. Do not scan it again.",
+          recent.transactionId
+        );
+
+
+        setStatus(
+          "Duplicate local scan blocked"
+        );
+
+
+        setTimeout(
+          function() {
+
+            scanLocked =
+              false;
+
+          },
+          3000
+        );
+
+
+        return;
+      }
+
+
+      const transactionId =
+        createTransactionId();
+
+
+      activeTransactionId =
+        transactionId;
+
+
+      const capturedDate =
+        new Date();
+
+
+      const scannerDevice =
+        document
+          .getElementById(
+            "scannerDevice"
+          )
+          .value;
+
+
+      const transaction = {
+
+        transactionId:
+          transactionId,
+
+        token:
+          token,
+
+        scannerDevice:
+          scannerDevice,
+
+        capturedAt:
+          capturedDate.toISOString(),
+
+        capturedAtMs:
+          capturedDate.getTime(),
+
+        status:
+          "PENDING",
+
+        attempts:
+          0,
+
+        lastAttemptAt:
+          "",
+
+        backendResult:
+          null,
+
+        updatedAt:
+          capturedDate.toISOString()
+      };
+
+
+      /*
+       * CRITICAL:
+       *
+       * The scan is committed to IndexedDB BEFORE
+       * any network request is attempted.
+       */
+
+      await saveLocalTransaction(
+        transaction
       );
 
-      unlockScanner();
+
+      await updateRegistryCounts();
+
+
+      showPendingTransaction(
+        transaction,
+        "✓ SCAN SAVED"
+      );
+
+
+      if (!navigator.onLine) {
+
+        setStatus(
+          "Offline — scan safely saved on this device. DO NOT RESCAN.",
+          "waiting"
+        );
+
+
+        return;
+      }
+
+
+      setStatus(
+        "Scan saved — sending to attendance server…",
+        "processing"
+      );
+
+
+      await processLocalTransaction(
+        transactionId
+      );
+
+
+    } catch (
+      error
+    ) {
+
+      console.error(
+        "Capture error:",
+        error
+      );
+
+
+      /*
+       * If IndexedDB itself failed, we cannot
+       * truthfully claim that the scan is saved.
+       */
+
+      showCriticalError(
+        "The scanner could not safely save this QR scan. Please contact the administrator before continuing."
+      );
+
+
+      scanLocked =
+        true;
+    }
+  }
+
+
+  // ====================================================
+  // LOCAL DUPLICATE PROTECTION
+  // ====================================================
+
+  async function findRecentTokenTransaction(
+    token
+  ) {
+
+    const records =
+      await getAllLocalTransactions();
+
+
+    const now =
+      Date.now();
+
+
+    const matching =
+      records
+        .filter(
+          function(record) {
+
+            return (
+              String(
+                record.token || ""
+              ).trim() ===
+                String(
+                  token || ""
+                ).trim() &&
+
+              (
+                now -
+                Number(
+                  record.capturedAtMs || 0
+                )
+              ) <
+                LOCAL_QR_COOLDOWN_MS
+            );
+          }
+        )
+        .sort(
+          function(a, b) {
+
+            return (
+              Number(
+                b.capturedAtMs || 0
+              ) -
+              Number(
+                a.capturedAtMs || 0
+              )
+            );
+          }
+        );
+
+
+    return (
+      matching.length
+        ? matching[0]
+        : null
+    );
+  }
+
+
+  // ====================================================
+  // SEND / VERIFY TRANSACTION
+  // ====================================================
+
+  async function processLocalTransaction(
+    transactionId
+  ) {
+
+    const transaction =
+      await getLocalTransaction(
+        transactionId
+      );
+
+
+    if (!transaction) {
+      return;
+    }
+
+
+    if (
+      transaction.status ===
+        "SYNCED" ||
+      transaction.status ===
+        "REJECTED" ||
+      transaction.status ===
+        "ATTENTION"
+    ) {
+
+      return;
+    }
+
+
+    if (!navigator.onLine) {
+
+      transaction.status =
+        "PENDING";
+
+      transaction.updatedAt =
+        new Date().toISOString();
+
+
+      await saveLocalTransaction(
+        transaction
+      );
+
+
+      await updateRegistryCounts();
+
+
+      showPendingTransaction(
+        transaction,
+        "SCAN SAFELY SAVED"
+      );
+
+
+      setStatus(
+        "Offline — waiting for connection. DO NOT RESCAN.",
+        "waiting"
+      );
+
+
+      return;
+    }
+
+
+    transaction.attempts =
+      Number(
+        transaction.attempts || 0
+      ) + 1;
+
+
+    transaction.lastAttemptAt =
+      new Date().toISOString();
+
+
+    transaction.status =
+      "VERIFYING";
+
+
+    transaction.updatedAt =
+      new Date().toISOString();
+
+
+    await saveLocalTransaction(
+      transaction
+    );
+
+
+    await updateRegistryCounts();
+
+
+    setStatus(
+      "Processing attendance — DO NOT RESCAN",
+      "processing"
+    );
+
+
+    showPendingTransaction(
+      transaction,
+      "PROCESSING ATTENDANCE"
+    );
+
+
+    /*
+     * First check whether this transaction already
+     * completed during an earlier attempt.
+     */
+
+    const knownStatus =
+      await requestTransactionStatus(
+        transaction.transactionId
+      );
+
+
+    if (
+      await applyBackendStatus(
+        transaction,
+        knownStatus
+      )
+    ) {
+
+      return;
+    }
+
+
+    /*
+     * Not found means the backend has not seen it.
+     * Submit the SAME transaction ID.
+     */
+
+    const submitResult =
+      await submitTransactionToBackend(
+        transaction
+      );
+
+
+    if (
+      await applyBackendStatus(
+        transaction,
+        submitResult
+      )
+    ) {
+
+      return;
+    }
+
+
+    /*
+     * Response was uncertain.
+     * Verify independently rather than telling the
+     * user that attendance failed.
+     */
+
+    await verifyTransactionUntilResolved(
+      transaction.transactionId
+    );
+  }
+
+
+  // ====================================================
+  // SUBMIT TRANSACTION
+  // ====================================================
+
+  function submitTransactionToBackend(
+    transaction
+  ) {
+
+    const params = {
+
+      action:
+        "scan",
+
+      token:
+        transaction.token,
+
+      scanner:
+        transaction.scannerDevice,
+
+      transaction:
+        transaction.transactionId,
+
+      capturedAt:
+        transaction.capturedAt
+    };
+
+
+    return jsonpRequest(
+      params,
+      INITIAL_RESPONSE_TIMEOUT_MS
+    );
+  }
+
+
+  // ====================================================
+  // STATUS REQUEST
+  // ====================================================
+
+  function requestTransactionStatus(
+    transactionId
+  ) {
+
+    return jsonpRequest(
+      {
+        action:
+          "scanstatus",
+
+        transaction:
+          transactionId
+      },
+      10000
+    );
+  }
+
+
+  // ====================================================
+  // JSONP REQUEST
+  // ====================================================
+
+  function jsonpRequest(
+    params,
+    timeoutMs
+  ) {
+
+    return new Promise(
+      function(resolve) {
+
+        const callbackName =
+          "hhaCallback_" +
+          Date.now() +
+          "_" +
+          Math.floor(
+            Math.random() *
+            1000000
+          );
+
+
+        const script =
+          document.createElement(
+            "script"
+          );
+
+
+        let finished =
+          false;
+
+
+        const timeout =
+          setTimeout(
+            function() {
+
+              if (finished) {
+                return;
+              }
+
+
+              finished =
+                true;
+
+
+              cleanup();
+
+
+              resolve(
+                {
+                  communicationUncertain:
+                    true,
+
+                  status:
+                    "COMMUNICATION_TIMEOUT",
+
+                  message:
+                    "Server acknowledgement was delayed."
+                }
+              );
+
+            },
+            timeoutMs
+          );
+
+
+        window[callbackName] =
+          function(result) {
+
+            if (finished) {
+              return;
+            }
+
+
+            finished =
+              true;
+
+
+            cleanup();
+
+
+            resolve(
+              result || {
+                communicationUncertain:
+                  true,
+
+                status:
+                  "EMPTY_RESPONSE"
+              }
+            );
+          };
+
+
+        function cleanup() {
+
+          clearTimeout(
+            timeout
+          );
+
+
+          try {
+
+            delete window[
+              callbackName
+            ];
+
+          } catch (
+            ignore
+          ) {}
+
+
+          if (
+            script.parentNode
+          ) {
+
+            script
+              .parentNode
+              .removeChild(
+                script
+              );
+          }
+        }
+
+
+        const query =
+          Object.keys(
+            params
+          )
+            .map(
+              function(key) {
+
+                return (
+                  encodeURIComponent(
+                    key
+                  ) +
+                  "=" +
+                  encodeURIComponent(
+                    params[key]
+                  )
+                );
+              }
+            )
+            .join("&");
+
+
+        script.src =
+          API_URL +
+          "?" +
+          query +
+          "&callback=" +
+          encodeURIComponent(
+            callbackName
+          ) +
+          "&t=" +
+          Date.now();
+
+
+        script.onerror =
+          function() {
+
+            if (finished) {
+              return;
+            }
+
+
+            finished =
+              true;
+
+
+            cleanup();
+
+
+            resolve(
+              {
+                communicationUncertain:
+                  true,
+
+                status:
+                  "NETWORK_ERROR",
+
+                message:
+                  "Unable to confirm the server response."
+              }
+            );
+          };
+
+
+        document.body.appendChild(
+          script
+        );
+      }
+    );
+  }
+
+
+  // ====================================================
+  // APPLY BACKEND STATUS
+  // ====================================================
+
+  async function applyBackendStatus(
+    transaction,
+    result
+  ) {
+
+    if (!result) {
+      return false;
+    }
+
+
+    /*
+     * COMPLETED
+     */
+
+    if (
+      result.status ===
+        "COMPLETED"
+    ) {
+
+      transaction.status =
+        "SYNCED";
+
+      transaction.backendResult =
+        result;
+
+      transaction.updatedAt =
+        new Date().toISOString();
+
+
+      await saveLocalTransaction(
+        transaction
+      );
+
+
+      await updateRegistryCounts();
+
+
+      const attendance =
+        result.attendance ||
+        result;
+
+
+      showAttendanceResult(
+        attendance,
+        transaction.transactionId
+      );
+
+
+      finishResolvedTransaction(
+        transaction.transactionId
+      );
+
+
+      return true;
+    }
+
+
+    /*
+     * REJECTED
+     *
+     * This is a definite backend decision.
+     */
+
+    if (
+      result.status ===
+        "REJECTED"
+    ) {
+
+      transaction.status =
+        "REJECTED";
+
+      transaction.backendResult =
+        result;
+
+      transaction.updatedAt =
+        new Date().toISOString();
+
+
+      await saveLocalTransaction(
+        transaction
+      );
+
+
+      await updateRegistryCounts();
+
+
+      const attendance =
+        result.attendance ||
+        result;
+
+
+      showRejectedResult(
+        attendance,
+        transaction.transactionId
+      );
+
+
+      finishResolvedTransaction(
+        transaction.transactionId
+      );
+
+
+      return true;
+    }
+
+
+    /*
+     * UNKNOWN
+     *
+     * Human review is safer than resubmission.
+     */
+
+    if (
+      result.status ===
+        "UNKNOWN"
+    ) {
+
+      transaction.status =
+        "ATTENTION";
+
+      transaction.backendResult =
+        result;
+
+      transaction.updatedAt =
+        new Date().toISOString();
+
+
+      await saveLocalTransaction(
+        transaction
+      );
+
+
+      await updateRegistryCounts();
+
+
+      showAttention(
+        "ATTENDANCE NEEDS VERIFICATION",
+        result.message ||
+        "The server could not safely determine the final attendance state.",
+        transaction.transactionId
+      );
+
+
+      setStatus(
+        "Do not rescan this QR — administrator verification required",
+        "waiting"
+      );
+
+
+      scanLocked =
+        true;
+
+
+      return true;
+    }
+
+
+    /*
+     * BUSY / NOT_FOUND / PROCESSING /
+     * communication failure remain unresolved.
+     */
+
+    return false;
+  }
+
+
+  // ====================================================
+  // VERIFY UNTIL RESOLVED
+  // ====================================================
+
+  async function verifyTransactionUntilResolved(
+    transactionId
+  ) {
+
+    for (
+      let attempt = 0;
+      attempt < VERIFY_ATTEMPTS;
+      attempt++
+    ) {
+
+      if (!navigator.onLine) {
+        break;
+      }
+
+
+      await delay(
+        VERIFY_INTERVAL_MS
+      );
+
+
+      const transaction =
+        await getLocalTransaction(
+          transactionId
+        );
+
+
+      if (!transaction) {
+        return;
+      }
+
+
+      setStatus(
+        "VERIFYING ATTENDANCE — DO NOT RESCAN",
+        "waiting"
+      );
+
+
+      showPendingTransaction(
+        transaction,
+        "VERIFYING ATTENDANCE"
+      );
+
+
+      const statusResult =
+        await requestTransactionStatus(
+          transactionId
+        );
+
+
+      if (
+        await applyBackendStatus(
+          transaction,
+          statusResult
+        )
+      ) {
+
+        return;
+      }
+    }
+
+
+    /*
+     * Still unresolved.
+     *
+     * Keep it pending and let the retry loop use the
+     * SAME transaction later.
+     */
+
+    const transaction =
+      await getLocalTransaction(
+        transactionId
+      );
+
+
+    if (!transaction) {
+      return;
+    }
+
+
+    transaction.status =
+      "PENDING";
+
+    transaction.updatedAt =
+      new Date().toISOString();
+
+
+    await saveLocalTransaction(
+      transaction
+    );
+
+
+    await updateRegistryCounts();
+
+
+    showPendingTransaction(
+      transaction,
+      "SCAN SAVED — WAITING TO SYNC"
+    );
+
+
+    setStatus(
+      "Attendance confirmation is delayed. Scan remains safely saved — DO NOT RESCAN.",
+      "waiting"
+    );
+
+
+    scanLocked =
+      true;
+  }
+
+
+  // ====================================================
+  // BACKGROUND SYNCHRONISATION
+  // ====================================================
+
+  async function synchronisePendingTransactions() {
+
+    if (
+      !db ||
+      !navigator.onLine
+    ) {
+
+      return;
+    }
+
+
+    const unresolved =
+      await getOldestUnresolvedTransaction();
+
+
+    if (!unresolved) {
+
+      if (!activeTransactionId) {
+
+        scanLocked =
+          false;
+
+
+        setStatus(
+          "READY — Scan a student or staff QR card"
+        );
+      }
+
+
+      return;
+    }
+
+
+    activeTransactionId =
+      unresolved.transactionId;
+
+
+    scanLocked =
+      true;
+
+
+    await processLocalTransaction(
+      unresolved.transactionId
+    );
+  }
+
+
+  function scheduleRetryLoop() {
+
+    if (retryTimer) {
+
+      clearInterval(
+        retryTimer
+      );
+    }
+
+
+    retryTimer =
+      setInterval(
+        function() {
+
+          synchronisePendingTransactions();
+
+        },
+        RETRY_INTERVAL_MS
+      );
+  }
+
+
+  // ====================================================
+  // RESOLUTION
+  // ====================================================
+
+  function finishResolvedTransaction(
+    transactionId
+  ) {
+
+    if (
+      activeTransactionId ===
+      transactionId
+    ) {
+
+      activeTransactionId =
+        "";
+    }
+
+
+    setTimeout(
+      async function() {
+
+        const unresolved =
+          await getOldestUnresolvedTransaction();
+
+
+        if (unresolved) {
+
+          activeTransactionId =
+            unresolved.transactionId;
+
+          scanLocked =
+            true;
+
+
+          await synchronisePendingTransactions();
+
+          return;
+        }
+
+
+        scanLocked =
+          false;
+
+
+        setStatus(
+          "READY — Scan a student or staff QR card"
+        );
+
+      },
+      3000
+    );
+  }
+
+
+  // ====================================================
+  // MANUAL TOKEN
+  // ====================================================
+
+  async function submitManualToken() {
+
+    if (scanLocked) {
+
+      showWarning(
+        "SCANNER BUSY",
+        "The previous scan is still being confirmed. Do not submit another token yet.",
+        activeTransactionId
+      );
+
+      return;
+    }
+
+
+    const input =
+      document.getElementById(
+        "manualToken"
+      );
+
+
+    const token =
+      String(
+        input.value || ""
+      ).trim();
+
+
+    if (!token) {
+
+      showRejectedResult(
+        {
+          message:
+            "Please enter a QR token."
+        },
+        ""
+      );
+
+      return;
+    }
+
+
+    input.value =
+      "";
+
+
+    await captureScan(
+      token
+    );
+  }
+
+
+  // ====================================================
+  // TRANSACTION ID
+  // ====================================================
+
+  function createTransactionId() {
+
+    const randomPart =
+      Math.random()
+        .toString(36)
+        .substring(2, 10)
+        .toUpperCase();
+
+
+    return (
+      "HHA-SCAN-" +
+      Date.now() +
+      "-" +
+      randomPart
+    );
+  }
+
+
+  // ====================================================
+  // REGISTRY COUNTS
+  // ====================================================
+
+  async function updateRegistryCounts() {
+
+    if (!db) {
+      return;
+    }
+
+
+    const records =
+      await getAllLocalTransactions();
+
+
+    const synced =
+      records.filter(
+        function(record) {
+
+          return (
+            record.status ===
+            "SYNCED"
+          );
+        }
+      ).length;
+
+
+    const pending =
+      records.filter(
+        function(record) {
+
+          return (
+            record.status ===
+              "PENDING" ||
+            record.status ===
+              "VERIFYING" ||
+            record.status ===
+              "BUSY"
+          );
+        }
+      ).length;
+
+
+    const attention =
+      records.filter(
+        function(record) {
+
+          return (
+            record.status ===
+              "ATTENTION" ||
+            record.status ===
+              "REJECTED"
+          );
+        }
+      ).length;
+
+
+    document
+      .getElementById(
+        "syncedCount"
+      )
+      .textContent =
+      synced;
+
+
+    document
+      .getElementById(
+        "pendingCount"
+      )
+      .textContent =
+      pending;
+
+
+    document
+      .getElementById(
+        "attentionCount"
+      )
+      .textContent =
+      attention;
+
+
+    const message =
+      document.getElementById(
+        "syncMessage"
+      );
+
+
+    if (pending > 0) {
+
+      message.textContent =
+        pending +
+        " scan" +
+        (
+          pending === 1
+            ? ""
+            : "s"
+        ) +
+        " safely stored and awaiting confirmation.";
+
+    } else {
+
+      message.textContent =
+        "No scans are waiting to sync.";
+    }
+  }
+
+
+  // ====================================================
+  // RESULT DISPLAY
+  // ====================================================
+
+  function showAttendanceResult(
+    result,
+    transactionId
+  ) {
+
+    if (!result) {
+
+      showAttention(
+        "ATTENDANCE CONFIRMED",
+        "The server confirmed the transaction but returned no display details.",
+        transactionId
+      );
+
       return;
     }
 
 
     const resultBox =
-      document.getElementById("resultBox");
+      document.getElementById(
+        "resultBox"
+      );
 
-    resultBox.className = "result";
 
-    document.getElementById("personName")
+    resultBox.className =
+      "result";
+
+
+    document
+      .getElementById(
+        "personName"
+      )
       .textContent =
       result.fullName || "";
 
-    document.getElementById("personDetail")
+
+    document
+      .getElementById(
+        "personDetail"
+      )
       .textContent =
       (result.personType || "") +
       (
         result.classDepartment
-          ? " • " + result.classDepartment
+          ? " • " +
+            result.classDepartment
           : ""
       );
 
-    document.getElementById("resultTime")
+
+    document
+      .getElementById(
+        "resultTime"
+      )
       .textContent =
       result.time || "";
 
-    document.getElementById("lateText")
-      .textContent = "";
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "transactionText"
+      )
+      .textContent =
+      transactionId
+        ? "Transaction: " +
+          transactionId
+        : "";
 
 
     if (
-  result.scanType === "OUT" &&
-  result.status === "Early Departure"
-) {
+      result.scanType === "OUT" &&
+      (
+        result.status ===
+          "Early Departure" ||
+        result.status ===
+          "Early Departure – Authorised"
+      )
+    ) {
 
-  resultBox.classList.add("late");
+      resultBox
+        .classList
+        .add(
+          "late"
+        );
 
-  document.getElementById("resultTitle")
-    .textContent =
-    "⚠ EARLY DEPARTURE";
 
-  document.getElementById("lateText")
-    .textContent =
-    result.minutesEarly +
-    " MINUTE" +
-    (
-      result.minutesEarly === 1
-        ? ""
-        : "S"
-    ) +
-    " EARLY";
+      document
+        .getElementById(
+          "resultTitle"
+        )
+        .textContent =
+        result.status ===
+          "Early Departure – Authorised"
+          ? "✓ AUTHORISED EARLY DEPARTURE"
+          : "⚠ EARLY DEPARTURE";
 
-  setStatus(
-    "Early departure recorded — warning issued"
-  );
 
-} else if (result.scanType === "OUT") {
+      if (
+        Number(
+          result.minutesEarly || 0
+        ) > 0
+      ) {
 
-  resultBox.classList.add("success");
+        document
+          .getElementById(
+            "lateText"
+          )
+          .textContent =
+          result.minutesEarly +
+          " MINUTE" +
+          (
+            Number(
+              result.minutesEarly
+            ) === 1
+              ? ""
+              : "S"
+          ) +
+          " EARLY";
+      }
 
-  document.getElementById("resultTitle")
-    .textContent =
-    "✓ DEPARTURE RECORDED";
 
-  setStatus(
-    "Departure recorded — ready for next scan"
-  );
-    } else if (result.status === "Late") {
+      setStatus(
+        "Attendance confirmed — ready for next scan"
+      );
 
-      resultBox.classList.add("late");
+      return;
+    }
 
-      document.getElementById("resultTitle")
+
+    if (
+      result.scanType === "OUT"
+    ) {
+
+      resultBox
+        .classList
+        .add(
+          "success"
+        );
+
+
+      document
+        .getElementById(
+          "resultTitle"
+        )
+        .textContent =
+        "✓ DEPARTURE RECORDED";
+
+
+      setStatus(
+        "Departure confirmed — ready for next scan"
+      );
+
+      return;
+    }
+
+
+    if (
+      result.status === "Late"
+    ) {
+
+      resultBox
+        .classList
+        .add(
+          "late"
+        );
+
+
+      document
+        .getElementById(
+          "resultTitle"
+        )
         .textContent =
         "⚠ LATE ARRIVAL";
 
-      document.getElementById("lateText")
+
+      document
+        .getElementById(
+          "lateText"
+        )
         .textContent =
         result.minutesLate +
         " MINUTE" +
         (
-          result.minutesLate === 1
+          Number(
+            result.minutesLate
+          ) === 1
             ? ""
             : "S"
         ) +
         " LATE";
 
-      setStatus(
-        "Late arrival recorded — ready for next scan"
-      );
-
-    } else {
-
-      resultBox.classList.add("success");
-
-      document.getElementById("resultTitle")
-        .textContent =
-        "✓ ARRIVAL RECORDED";
-
-      document.getElementById("lateText")
-        .textContent =
-        "ON TIME";
 
       setStatus(
-        "Arrival recorded — ready for next scan"
-      );
-    }
-
-    unlockScanner();
-  }
-
-
-  function showError(message) {
-
-    const resultBox =
-      document.getElementById("resultBox");
-
-    resultBox.className =
-      "result error";
-
-    document.getElementById("resultTitle")
-      .textContent =
-      "✕ SCAN NOT ACCEPTED";
-
-    document.getElementById("personName")
-      .textContent = "";
-
-    document.getElementById("personDetail")
-      .textContent = message;
-
-    document.getElementById("resultTime")
-      .textContent = "";
-
-    document.getElementById("lateText")
-      .textContent = "";
-
-    setStatus(
-      "Scan rejected — ready to try again"
-    );
-  }
-
-
-  function unlockScanner() {
-
-    setTimeout(function() {
-
-      scanLocked = false;
-
-    }, 2500);
-  }
-
-
-  function submitManualToken() {
-
-    const input =
-      document.getElementById("manualToken");
-
-    const token =
-      String(input.value || "").trim();
-
-    if (!token) {
-
-      showError(
-        "Please enter a QR token."
+        "Arrival confirmed — ready for next scan"
       );
 
       return;
     }
 
-    input.value = "";
 
-    submitToken(token);
+    resultBox
+      .classList
+      .add(
+        "success"
+      );
+
+
+    document
+      .getElementById(
+        "resultTitle"
+      )
+      .textContent =
+      "✓ ARRIVAL RECORDED";
+
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "ON TIME";
+
+
+    setStatus(
+      "Arrival confirmed — ready for next scan"
+    );
   }
 
 
-  function setStatus(message) {
+  function showPendingTransaction(
+    transaction,
+    title
+  ) {
 
-    document.getElementById("statusBar")
-      .textContent = message;
+    const resultBox =
+      document.getElementById(
+        "resultBox"
+      );
+
+
+    resultBox.className =
+      "result pending";
+
+
+    document
+      .getElementById(
+        "resultTitle"
+      )
+      .textContent =
+      title ||
+      "SCAN SAVED";
+
+
+    document
+      .getElementById(
+        "personName"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "personDetail"
+      )
+      .textContent =
+      navigator.onLine
+        ? "Waiting for attendance server confirmation. DO NOT RESCAN."
+        : "No connection. This scan is safely stored on this device and will retry automatically.";
+
+
+    document
+      .getElementById(
+        "resultTime"
+      )
+      .textContent =
+      formatLocalTime(
+        transaction.capturedAtMs
+      );
+
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "DO NOT RESCAN";
+
+
+    document
+      .getElementById(
+        "transactionText"
+      )
+      .textContent =
+      "Transaction: " +
+      transaction.transactionId;
   }
 
 
-  window.addEventListener(
-    "load",
-    startScanner
-  );
+  function showRejectedResult(
+    result,
+    transactionId
+  ) {
+
+    const resultBox =
+      document.getElementById(
+        "resultBox"
+      );
+
+
+    resultBox.className =
+      "result error";
+
+
+    document
+      .getElementById(
+        "resultTitle"
+      )
+      .textContent =
+      "✕ SCAN NOT ACCEPTED";
+
+
+    document
+      .getElementById(
+        "personName"
+      )
+      .textContent =
+      result &&
+      result.fullName
+        ? result.fullName
+        : "";
+
+
+    document
+      .getElementById(
+        "personDetail"
+      )
+      .textContent =
+      result &&
+      result.message
+        ? result.message
+        : "Attendance was not accepted by the server.";
+
+
+    document
+      .getElementById(
+        "resultTime"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "transactionText"
+      )
+      .textContent =
+      transactionId
+        ? "Transaction: " +
+          transactionId
+        : "";
+
+
+    setStatus(
+      "Server rejected this attendance scan"
+    );
+  }
+
+
+  function showWarning(
+    title,
+    message,
+    transactionId
+  ) {
+
+    const resultBox =
+      document.getElementById(
+        "resultBox"
+      );
+
+
+    resultBox.className =
+      "result warning";
+
+
+    document
+      .getElementById(
+        "resultTitle"
+      )
+      .textContent =
+      title;
+
+
+    document
+      .getElementById(
+        "personName"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "personDetail"
+      )
+      .textContent =
+      message;
+
+
+    document
+      .getElementById(
+        "resultTime"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "transactionText"
+      )
+      .textContent =
+      transactionId
+        ? "Transaction: " +
+          transactionId
+        : "";
+  }
+
+
+  function showAttention(
+    title,
+    message,
+    transactionId
+  ) {
+
+    showWarning(
+      title,
+      message,
+      transactionId
+    );
+  }
+
+
+  function showCriticalError(
+    message
+  ) {
+
+    const resultBox =
+      document.getElementById(
+        "resultBox"
+      );
+
+
+    resultBox.className =
+      "result error";
+
+
+    document
+      .getElementById(
+        "resultTitle"
+      )
+      .textContent =
+      "✕ SCANNER NOT SAFE TO USE";
+
+
+    document
+      .getElementById(
+        "personName"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "personDetail"
+      )
+      .textContent =
+      message;
+
+
+    document
+      .getElementById(
+        "resultTime"
+      )
+      .textContent =
+      "";
+
+
+    document
+      .getElementById(
+        "lateText"
+      )
+      .textContent =
+      "CONTACT ADMIN";
+
+
+    document
+      .getElementById(
+        "transactionText"
+      )
+      .textContent =
+      "";
+
+
+    setStatus(
+      "Scanner disabled"
+    );
+  }
+
+
+  // ====================================================
+  // NETWORK
+  // ====================================================
+
+  function updateNetworkStatus() {
+
+    const bar =
+      document.getElementById(
+        "networkBar"
+      );
+
+
+    if (navigator.onLine) {
+
+      bar.className =
+        "network-bar network-online";
+
+      bar.textContent =
+        "● ONLINE";
+
+    } else {
+
+      bar.className =
+        "network-bar network-offline";
+
+      bar.textContent =
+        "● OFFLINE — SCANS WILL BE SAVED LOCALLY";
+    }
+  }
+
+
+  // ====================================================
+  // STATUS BAR
+  // ====================================================
+
+  function setStatus(
+    message,
+    type
+  ) {
+
+    const bar =
+      document.getElementById(
+        "statusBar"
+      );
+
+
+    bar.className =
+      "status-bar";
+
+
+    if (
+      type === "processing"
+    ) {
+
+      bar.classList.add(
+        "status-processing"
+      );
+
+    } else if (
+      type === "waiting"
+    ) {
+
+      bar.classList.add(
+        "status-waiting"
+      );
+    }
+
+
+    bar.textContent =
+      message;
+  }
+
+
+  // ====================================================
+  // UTILITIES
+  // ====================================================
+
+  function delay(
+    milliseconds
+  ) {
+
+    return new Promise(
+      function(resolve) {
+
+        setTimeout(
+          resolve,
+          milliseconds
+        );
+      }
+    );
+  }
+
+
+  function formatLocalTime(
+    milliseconds
+  ) {
+
+    const value =
+      Number(
+        milliseconds || 0
+      );
+
+
+    if (!value) {
+      return "";
+    }
+
+
+    try {
+
+      return new Date(
+        value
+      ).toLocaleTimeString(
+        [],
+        {
+          hour:
+            "numeric",
+          minute:
+            "2-digit"
+        }
+      );
+
+    } catch (
+      ignore
+    ) {
+
+      return "";
+    }
+  }
 
 </script>
 
