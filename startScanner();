@@ -311,7 +311,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.3 — Offline Queue
+      Reliable Scanner v2.6 — Non-Blocking Queue
     </div>
   </div>
 
@@ -350,8 +350,8 @@
     Hold the QR card clearly inside the camera frame.
     <br>
     <strong>
-      Scan once only. The scanner will confirm the result.
-    </strong>
+  Scan each card once. After SCAN SAVED, move to the next person.
+</strong>
   </div>
 
   <div
@@ -578,6 +578,16 @@
   let activeTransactionId =
     "";
 
+  /*
+ * DISPLAY OWNERSHIP
+ *
+ * Identifies the most recently captured transaction.
+ * Background responses belonging to older transactions
+ * must never overwrite the current scanner display.
+ */
+
+let latestCaptureTransactionId =
+  "";
 
   let retryTimer =
   null;
@@ -662,57 +672,49 @@ const CAMERA_REPEAT_BLOCK_MS =
 if (unresolved) {
 
   /*
-   * If ONLINE, lock while we synchronise the oldest
-   * pending transaction.
+   * NON-BLOCKING STARTUP RECOVERY
    *
-   * If OFFLINE, leave scanning available so multiple
-   * people can continue to be captured locally.
+   * An unresolved transaction must never prevent
+   * the camera from accepting new attendance scans.
+   *
+   * The transaction remains safely stored locally
+   * and the background worker will synchronise it
+   * independently.
+   */
+
+  activeTransactionId =
+    "";
+
+
+  scanLocked =
+    false;
+
+
+  showPendingTransaction(
+    unresolved,
+    navigator.onLine
+      ? "SAVED SCAN PENDING SYNC"
+      : "OFFLINE SCANS SAFELY STORED"
+  );
+
+
+  setStatus(
+    navigator.onLine
+      ? "READY FOR NEXT QR — saved attendance is synchronising in the background."
+      : "OFFLINE — READY FOR NEXT QR. Saved scans will sync automatically.",
+    "waiting"
+  );
+
+
+  /*
+   * Start background recovery without waiting for it.
    */
 
   if (navigator.onLine) {
 
-    activeTransactionId =
-      unresolved.transactionId;
-
-    scanLocked =
-      true;
-
-
-    showPendingTransaction(
-      unresolved,
-      "VERIFYING SAVED SCAN"
-    );
-
-
-    setStatus(
-      "Synchronising saved attendance — please wait",
-      "waiting"
-    );
-
-
     setTimeout(
       synchronisePendingTransactions,
       500
-    );
-
-  } else {
-
-    activeTransactionId =
-      "";
-
-    scanLocked =
-      false;
-
-
-    showPendingTransaction(
-      unresolved,
-      "OFFLINE SCANS SAFELY STORED"
-    );
-
-
-    setStatus(
-      "OFFLINE — READY FOR NEXT QR. Saved scans will sync automatically.",
-      "waiting"
     );
   }
 
@@ -724,10 +726,10 @@ if (unresolved) {
 }
 
 
-      startScanner();
+startScanner();
 
 
-      scheduleRetryLoop();
+scheduleRetryLoop();
 
 
     } catch (
@@ -1037,6 +1039,46 @@ if (unresolved) {
     );
   }
 
+  /*
+ * Return a snapshot of all unresolved attendance
+ * transactions in capture order.
+ *
+ * The synchronisation worker uses this snapshot so
+ * one difficult transaction cannot prevent later
+ * locally-saved scans from receiving a sync attempt.
+ */
+
+async function getUnresolvedTransactionQueue() {
+
+  const records =
+    await getAllLocalTransactions();
+
+
+  return records
+    .filter(
+      function(record) {
+
+        return (
+          record.status === "PENDING" ||
+          record.status === "VERIFYING" ||
+          record.status === "BUSY"
+        );
+      }
+    )
+    .sort(
+      function(a, b) {
+
+        return (
+          Number(
+            a.capturedAtMs || 0
+          ) -
+          Number(
+            b.capturedAtMs || 0
+          )
+        );
+      }
+    );
+}
 
   // ====================================================
   // CAMERA
@@ -1228,27 +1270,38 @@ if (unresolved) {
         );
 
 
-        setTimeout(
-          function() {
+        /*
+ * The duplicate has already been safely blocked.
+ * Release capture immediately so a different person
+ * can scan without waiting.
+ */
 
-            scanLocked =
-              false;
+activeTransactionId =
+  "";
 
-          },
-          3000
-        );
+scanLocked =
+  false;
 
 
-        return;
+return;
       }
 
 
       const transactionId =
-        createTransactionId();
+  createTransactionId();
 
 
-      activeTransactionId =
-        transactionId;
+activeTransactionId =
+  transactionId;
+
+
+/*
+ * This is now the newest attendance capture and
+ * therefore owns the main result display.
+ */
+
+latestCaptureTransactionId =
+  transactionId;
 
 
       const capturedDate =
@@ -1349,39 +1402,73 @@ if (unresolved) {
    */
 
   activeTransactionId =
-    "";
+  "";
 
 
-  setTimeout(
-    function() {
+/*
+ * The transaction is already safely stored locally.
+ * Release capture immediately so the next person
+ * can scan without waiting for network access.
+ */
 
-      scanLocked =
-        false;
+scanLocked =
+  false;
 
 
-      setStatus(
+setStatus(
   "OFFLINE — READY FOR NEXT PERSON",
   "waiting"
 );
 
-    },
-    1200
-  );
 
-
-  return;
+return;
 }
 
 
-      setStatus(
-        "Scan saved — sending to attendance server…",
-        "processing"
-      );
+      /*
+ * NON-BLOCKING CAPTURE
+ *
+ * The attendance transaction is already safely
+ * committed to IndexedDB.
+ *
+ * Network synchronisation must never hold the
+ * camera. Release capture immediately and allow
+ * the queue worker to synchronise independently.
+ */
+
+showPendingTransaction(
+  transaction,
+  "✓ SCAN SAVED"
+);
 
 
-      await processLocalTransaction(
-        transactionId
-      );
+setStatus(
+  "SCAN SAVED — READY FOR NEXT PERSON",
+  "waiting"
+);
+
+
+/*
+ * This transaction no longer owns the scanner UI.
+ * It remains safely stored in IndexedDB.
+ */
+
+activeTransactionId =
+  "";
+
+
+scanLocked =
+  false;
+
+
+/*
+ * Start/reuse the single background worker.
+ *
+ * Do NOT await this call. Server latency must not
+ * delay the next QR capture.
+ */
+
+synchronisePendingTransactions();
 
 
     } catch (
@@ -1521,16 +1608,14 @@ if (unresolved) {
       await updateRegistryCounts();
 
 
-      showPendingTransaction(
-        transaction,
-        "SCAN SAFELY SAVED"
-      );
+      /*
+ * The transaction remains safely stored locally.
+ * Do not take over the scanner UI simply because
+ * synchronisation discovered that connectivity
+ * has disappeared.
+ */
 
-
-      setStatus(
-        "Offline — waiting for connection. DO NOT RESCAN.",
-        "waiting"
-      );
+await updateRegistryCounts();
 
 
       return;
@@ -1563,16 +1648,15 @@ if (unresolved) {
     await updateRegistryCounts();
 
 
-    setStatus(
-      "Processing attendance — DO NOT RESCAN",
-      "processing"
-    );
+    /*
+ * Synchronisation happens in the background.
+ *
+ * Do not overwrite the main scanner display here.
+ * The operator must remain free to scan the next
+ * student while this transaction is processed.
+ */
 
-
-    showPendingTransaction(
-      transaction,
-      "PROCESSING ATTENDANCE"
-    );
+await updateRegistryCounts();
 
 
     /*
@@ -1927,15 +2011,29 @@ if (unresolved) {
         result;
 
 
-      showAttendanceResult(
-        attendance,
-        transaction.transactionId
-      );
+     /*
+ * Only show the server result if this is still the
+ * newest QR captured by the operator.
+ *
+ * Older transactions continue to complete normally
+ * in IndexedDB without hijacking the display.
+ */
+
+if (
+  transaction.transactionId ===
+  latestCaptureTransactionId
+) {
+
+  showAttendanceResult(
+    attendance,
+    transaction.transactionId
+  );
+}
 
 
-      finishResolvedTransaction(
-        transaction.transactionId
-      );
+finishResolvedTransaction(
+  transaction.transactionId
+);
 
 
       return true;
@@ -1976,10 +2074,16 @@ if (unresolved) {
         result;
 
 
-      showRejectedResult(
-        attendance,
-        transaction.transactionId
-      );
+      if (
+  transaction.transactionId ===
+  latestCaptureTransactionId
+) {
+
+  showRejectedResult(
+    attendance,
+    transaction.transactionId
+  );
+}
 
 
       finishResolvedTransaction(
@@ -2020,25 +2124,33 @@ if (unresolved) {
       await updateRegistryCounts();
 
 
-      showAttention(
-        "ATTENDANCE NEEDS VERIFICATION",
-        result.message ||
-        "The server could not safely determine the final attendance state.",
-        transaction.transactionId
-      );
+      if (
+  transaction.transactionId ===
+  latestCaptureTransactionId
+) {
+
+  showAttention(
+    "ATTENDANCE NEEDS VERIFICATION",
+    result.message ||
+    "The server could not safely determine the final attendance state.",
+    transaction.transactionId
+  );
 
 
-      setStatus(
-        "Do not rescan this QR — administrator verification required",
-        "waiting"
-      );
+  setStatus(
+    "This scan needs administrator verification — scanner remains ready for the next person.",
+    "waiting"
+  );
+}
 
 
-      scanLocked =
-        true;
+/*
+ * This transaction is isolated as ATTENTION.
+ * It must never disable attendance capture for
+ * other students or staff.
+ */
 
-
-      return true;
+return true;
     }
 
 
@@ -2086,16 +2198,15 @@ if (unresolved) {
       }
 
 
-      setStatus(
-        "VERIFYING ATTENDANCE — DO NOT RESCAN",
-        "waiting"
-      );
+      /*
+ * Verification is a background operation.
+ *
+ * Do not display "VERIFYING ATTENDANCE" on the
+ * main scanner interface because this transaction
+ * must not interrupt capture of the next person.
+ */
 
-
-      showPendingTransaction(
-        transaction,
-        "VERIFYING ATTENDANCE"
-      );
+await updateRegistryCounts();
 
 
       const statusResult =
@@ -2149,20 +2260,12 @@ if (unresolved) {
     await updateRegistryCounts();
 
 
-    showPendingTransaction(
-      transaction,
-      "SCAN SAVED — WAITING TO SYNC"
-    );
+/*
+ * Never lock the camera because server confirmation
+ * is delayed. The original transaction remains in
+ * IndexedDB and will retry with the same ID.
+ */
 
-
-    setStatus(
-      "Attendance confirmation is delayed. Scan remains safely saved — DO NOT RESCAN.",
-      "waiting"
-    );
-
-
-    scanLocked =
-      true;
   }
 
 
@@ -2197,121 +2300,115 @@ if (unresolved) {
 
 
   try {
+/*
+ * Take one snapshot of the unresolved queue.
+ *
+ * Every transaction present in this snapshot gets
+ * at most one processing opportunity during this
+ * worker pass.
+ *
+ * This prevents one difficult transaction from
+ * starving later scans while also preventing an
+ * unresolved transaction from being selected again
+ * immediately in an endless loop.
+ */
 
-    /*
-     * Process the queue serially.
-     *
-     * One transaction must completely resolve or
-     * return to PENDING before another transaction
-     * is considered.
-     */
-
-    while (navigator.onLine) {
-
-      const unresolved =
-        await getOldestUnresolvedTransaction();
-
-
-      if (!unresolved) {
-
-        activeTransactionId =
-          "";
-
-        scanLocked =
-          false;
+const queue =
+  await getUnresolvedTransactionQueue();
 
 
-        setStatus(
-          "READY — Scan a student or staff QR card"
-        );
+for (
+  let index = 0;
+  index < queue.length;
+  index++
+) {
+
+  /*
+   * Stop cleanly if connectivity disappears.
+   * Remaining transactions stay safely stored
+   * for the next worker pass.
+   */
+
+  if (!navigator.onLine) {
+    break;
+  }
 
 
-        break;
-      }
+  const queuedTransaction =
+    queue[index];
 
 
-      activeTransactionId =
-        unresolved.transactionId;
+  /*
+   * Re-read the transaction because another operation
+   * may have resolved it since this snapshot was made.
+   */
 
-      scanLocked =
-        true;
-
-
-      await processLocalTransaction(
-        unresolved.transactionId
-      );
-
-
-      /*
-       * Re-read the transaction after processing.
-       */
-
-      const updated =
-        await getLocalTransaction(
-          unresolved.transactionId
-        );
+  const current =
+    await getLocalTransaction(
+      queuedTransaction.transactionId
+    );
 
 
-      if (!updated) {
-        continue;
-      }
+  if (!current) {
+    continue;
+  }
 
 
-      /*
-       * A resolved transaction can be removed from
-       * consideration and the worker may proceed to
-       * the next queued scan.
-       */
+  if (
+    current.status === "SYNCED" ||
+    current.status === "REJECTED" ||
+    current.status === "ATTENTION"
+  ) {
 
-      if (
-        updated.status === "SYNCED" ||
-        updated.status === "REJECTED" ||
-        updated.status === "ATTENTION"
-      ) {
-
-        continue;
-      }
+    continue;
+  }
 
 
-      /*
-       * If it remains unresolved, do NOT spin on it.
-       * Leave it safely queued for a later retry.
-       */
+  /*
+   * Process this transaction using its ORIGINAL
+   * transaction ID and ORIGINAL captured timestamp.
+   *
+   * processLocalTransaction() never creates a
+   * replacement transaction.
+   */
 
-      activeTransactionId =
-        updated.transactionId;
-
-
-      showPendingTransaction(
-        updated,
-        "SCAN SAVED — WAITING TO SYNC"
-      );
+  await processLocalTransaction(
+    current.transactionId
+  );
 
 
-      setStatus(
-        "Server confirmation delayed — scan remains safely queued",
-        "waiting"
-      );
+  /*
+   * Whether this transaction resolved or returned
+   * to PENDING, move on to the next transaction from
+   * this snapshot.
+   *
+   * Any unresolved transaction will be eligible again
+   * on a later worker pass.
+   */
 
-
-      break;
-    }
+  await updateRegistryCounts();
+}
 
 
   } catch (
     error
   ) {
 
-    console.error(
-      "Queue synchronisation error:",
-      error
-    );
+   console.error(
+  "Queue synchronisation error:",
+  error
+);
 
 
-    setStatus(
-      "Saved scans remain queued — synchronisation will retry",
-      "waiting"
-    );
+/*
+ * Saved transactions remain in IndexedDB.
+ *
+ * Do not overwrite the operator's current scanner
+ * display because of a background synchronisation
+ * error.
+ */
+
+await updateRegistryCounts();
 
 
   } finally {
@@ -2354,92 +2451,17 @@ if (unresolved) {
   transactionId
 ) {
 
-  if (
-    activeTransactionId ===
-    transactionId
-  ) {
-
-    activeTransactionId =
-      "";
-  }
-
-
   /*
-   * Do NOT start another synchronisation process
-   * here.
+   * Resolution belongs to the background queue.
    *
-   * The single queue worker owns queue progression.
+   * Never change scanLocked here. A different QR may
+   * already be committing to IndexedDB.
+   *
+   * Never clear activeTransactionId here for the same
+   * reason: it may belong to a newer capture.
    */
 
-  setTimeout(
-    async function() {
-
-      await updateRegistryCounts();
-
-
-      /*
-       * If the queue worker is active, leave control
-       * with it.
-       */
-
-      if (syncWorkerRunning) {
-        return;
-      }
-
-
-      const unresolved =
-        await getOldestUnresolvedTransaction();
-
-
-      if (
-        unresolved &&
-        navigator.onLine
-      ) {
-
-        setStatus(
-          "Saved attendance waiting to synchronise",
-          "waiting"
-        );
-
-        return;
-      }
-
-
-      if (
-        unresolved &&
-        !navigator.onLine
-      ) {
-
-        scanLocked =
-          false;
-
-        activeTransactionId =
-          "";
-
-
-        setStatus(
-          "OFFLINE — READY FOR NEXT PERSON",
-          "waiting"
-        );
-
-        return;
-      }
-
-
-      scanLocked =
-        false;
-
-      activeTransactionId =
-        "";
-
-
-      setStatus(
-        "READY — Scan a student or staff QR card"
-      );
-
-    },
-    1200
-  );
+  updateRegistryCounts();
 }
 
 
@@ -2452,10 +2474,10 @@ if (unresolved) {
     if (scanLocked) {
 
       showWarning(
-        "SCANNER BUSY",
-        "The previous scan is still being confirmed. Do not submit another token yet.",
-        activeTransactionId
-      );
+  "SCANNER BUSY",
+  "A QR scan is currently being saved locally. Please try again in a moment.",
+  activeTransactionId
+);
 
       return;
     }
@@ -2900,9 +2922,9 @@ if (unresolved) {
         "personDetail"
       )
       .textContent =
-      navigator.onLine
-        ? "Waiting for attendance server confirmation. DO NOT RESCAN."
-        : "No connection. This scan is safely stored on this device and will retry automatically.";
+navigator.onLine
+  ? "Saved locally and awaiting server confirmation. You may scan the next person."
+  : "Saved safely on this device. You may continue scanning other people while offline.";
 
 
     document
@@ -2919,8 +2941,8 @@ if (unresolved) {
       .getElementById(
         "lateText"
       )
-      .textContent =
-      "DO NOT RESCAN";
+     .textContent =
+"DO NOT RESCAN THIS PERSON";
 
 
     document
