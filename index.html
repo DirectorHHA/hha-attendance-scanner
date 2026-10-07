@@ -640,14 +640,19 @@ const CAMERA_REPEAT_BLOCK_MS =
 
 
     window.addEventListener(
-      "online",
-      function() {
+  "online",
+  function() {
 
-        updateNetworkStatus();
+    updateNetworkStatus();
 
-        synchronisePendingTransactions();
-      }
+    setStatus(
+      "ONLINE — saved scans are synchronising in the background. READY FOR NEXT PERSON.",
+      "waiting"
     );
+
+    synchronisePendingTransactions();
+  }
+);
 
 
     window.addEventListener(
