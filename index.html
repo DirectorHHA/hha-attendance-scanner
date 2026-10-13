@@ -413,8 +413,8 @@
         </span>
 
         <span class="sync-label">
-          SYNCED
-        </span>
+  SYNCED TODAY
+</span>
       </div>
 
       <div class="sync-item">
@@ -733,9 +733,35 @@ if (unresolved) {
 
 startScanner();
 
-
 scheduleRetryLoop();
 
+/*
+ * DAILY REGISTRY DISPLAY REFRESH
+ *
+ * Refresh the displayed counters every minute.
+ * SYNCED TODAY automatically reflects the
+ * current Africa/Lagos calendar date.
+ *
+ * No transactions are modified or deleted.
+ */
+
+setInterval(
+  function() {
+
+    if (db) {
+      updateRegistryCounts().catch(
+        function(error) {
+          console.error(
+            "Registry counter refresh error:",
+            error
+          );
+        }
+      );
+    }
+
+  },
+  60000
+);
 
     } catch (
       error
@@ -2561,16 +2587,46 @@ await updateRegistryCounts();
       await getAllLocalTransactions();
 
 
-    const synced =
-      records.filter(
-        function(record) {
+const todayLagos =
+  new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Africa/Lagos",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }
+  ).format(new Date());
 
-          return (
-            record.status ===
-            "SYNCED"
-          );
-        }
-      ).length;
+const synced =
+  records.filter(
+    function(record) {
+
+      if (record.status !== "SYNCED") {
+        return false;
+      }
+
+      const capturedAtMs =
+        Number(record.capturedAtMs || 0);
+
+      if (!capturedAtMs) {
+        return false;
+      }
+
+      const capturedDateLagos =
+        new Intl.DateTimeFormat(
+          "en-CA",
+          {
+            timeZone: "Africa/Lagos",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+          }
+        ).format(new Date(capturedAtMs));
+
+      return capturedDateLagos === todayLagos;
+    }
+  ).length;
 
 
     const pending =
