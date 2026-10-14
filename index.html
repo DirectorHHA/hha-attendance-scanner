@@ -3678,6 +3678,89 @@ function formatRegistryDate(
     return "";
   }
 }
+
+  // ====================================================
+// SCANNER REGISTRY BACKUP — READ ONLY
+// ====================================================
+
+async function exportAttendanceRegistryBackup() {
+
+  try {
+
+    if (!db) {
+      alert("Scanner database is not available.");
+      return;
+    }
+
+    const records =
+      await getAllLocalTransactions();
+
+    if (!records.length) {
+      alert("No scanner transactions found.");
+      return;
+    }
+
+    const backup = {
+      school: "Hamd House Academy",
+      backupType: "Attendance Scanner Registry",
+      exportedAt: new Date().toISOString(),
+      database: DB_NAME,
+      totalTransactions: records.length,
+      transactions: records
+    };
+
+    const json =
+      JSON.stringify(backup, null, 2);
+
+    const blob =
+      new Blob(
+        [json],
+        { type: "application/json" }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+      "HHA_SCANNER_BACKUP_" +
+      new Date().toISOString()
+        .replace(/[:.]/g, "-") +
+      ".json";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    setTimeout(function() {
+      URL.revokeObjectURL(url);
+    }, 60000);
+
+    alert(
+      "Scanner backup created.\n\n" +
+      "Total transactions: " +
+      records.length +
+      "\n\nKeep this file safe."
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Scanner backup failed:",
+      error
+    );
+
+    alert(
+      "Backup failed. No transactions were deleted or changed."
+    );
+  }
+}
 </script>
 
 </body>
