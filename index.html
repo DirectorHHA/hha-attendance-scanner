@@ -300,6 +300,11 @@
       padding: 15px;
     }
 
+
+    .registry-filter { cursor:pointer; width:100%; font:inherit; color:inherit; }
+    .registry-filter:focus-visible { outline:3px solid #7c2f39; outline-offset:2px; }
+    .registry-filter.active { border:2px solid #7c2f39; background:#f9f0f1; }
+    .archive-button { display:block; width:100%; margin-top:12px; padding:12px; background:#737373; color:white; border:0; border-radius:6px; font-weight:bold; cursor:pointer; }
   </style>
 </head>
 
@@ -422,7 +427,7 @@
 
     <div class="sync-grid">
 
-      <div class="sync-item">
+      <button type="button" class="sync-item registry-filter" onclick="showRegistryCategory('SYNCED')" aria-label="View synced scans">
         <span
           id="syncedCount"
           class="sync-number"
@@ -433,9 +438,9 @@
         <span class="sync-label">
   SYNCED TODAY
 </span>
-      </div>
+      </button>
 
-      <div class="sync-item">
+      <button type="button" class="sync-item registry-filter" onclick="showRegistryCategory('PENDING')" aria-label="View pending scans">
         <span
           id="pendingCount"
           class="sync-number"
@@ -446,9 +451,9 @@
         <span class="sync-label">
           PENDING
         </span>
-      </div>
+      </button>
 
-      <div class="sync-item">
+      <button type="button" class="sync-item registry-filter" onclick="showRegistryCategory('ATTENTION')" aria-label="View attention scans">
         <span
           id="attentionCount"
           class="sync-number"
@@ -459,7 +464,7 @@
         <span class="sync-label">
           ATTENTION
         </span>
-      </div>
+      </button>
 
     </div>
 
@@ -473,7 +478,7 @@
 <div style="text-align:center; margin-top:12px;">
   <button
     type="button"
-    onclick="toggleRegistryDetails()"
+    onclick="showAllRegistryDetails()"
     style="
       padding:10px 16px;
       background:#737373;
@@ -487,6 +492,8 @@
     VIEW REGISTRY DETAILS
   </button>
 </div>
+
+<button type="button" class="archive-button" onclick="archiveHistoricalPendingScans()">ARCHIVE OLD PENDING SCANS (13–14 OCT)</button>
 
 <div
   id="registryDetails"
@@ -3401,6 +3408,26 @@ navigator.onLine
 // REGISTRY DIAGNOSTIC VIEW
 // ====================================================
 
+let registryCategoryFilter = "ALL";
+
+async function showAllRegistryDetails() {
+  registryCategoryFilter = "ALL";
+  document.querySelectorAll(".registry-filter").forEach(function(button) { button.classList.remove("active"); });
+  const box = document.getElementById("registryDetails");
+  box.style.display = "none";
+  await toggleRegistryDetails();
+}
+
+async function showRegistryCategory(category) {
+  registryCategoryFilter = category;
+  const box = document.getElementById("registryDetails");
+  box.style.display = "none";
+  document.querySelectorAll(".registry-filter").forEach(function(button) {
+    button.classList.toggle("active", button.getAttribute("aria-label") === "View " + category.toLowerCase() + " scans");
+  });
+  await toggleRegistryDetails();
+}
+
 async function toggleRegistryDetails() {
 
   const box =
@@ -3434,7 +3461,13 @@ async function toggleRegistryDetails() {
       await getAllLocalTransactions();
 
 
-    records.sort(
+    const filteredRecords = records.filter(function(record) {
+      if (registryCategoryFilter === "ALL") return true;
+      if (registryCategoryFilter === "PENDING") return ["PENDING", "VERIFYING", "BUSY"].includes(record.status);
+      return record.status === registryCategoryFilter;
+    });
+
+    filteredRecords.sort(
       function(a, b) {
 
         return (
@@ -3449,19 +3482,20 @@ async function toggleRegistryDetails() {
     );
 
 
-    if (!records.length) {
+    if (!filteredRecords.length) {
 
       box.innerHTML =
-        "No locally stored scan transactions.";
+        "No scans in this category.";
 
       return;
     }
 
 
-    let html = "";
+    let html = "<div style='font-weight:bold;margin-bottom:12px;'>" +
+      escapeRegistryHtml(registryCategoryFilter === "ALL" ? "ALL SCANS" : registryCategoryFilter + " SCANS") +
+      " (" + filteredRecords.length + ")</div>";
 
-
-    records.forEach(
+    filteredRecords.forEach(
       function(record) {
 
         const backend =
