@@ -311,7 +311,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.6 — Non-Blocking Queue
+      Reliable Scanner v2.7 — Live Queue Recovery
     </div>
   </div>
 
@@ -1103,14 +1103,20 @@ async function getUnresolvedTransactionQueue() {
     await getAllLocalTransactions();
 
 
+  // Historical unresolved scans before 15 October 2026 remain
+  // untouched in IndexedDB but do not enter the live sync queue.
+  // 2026-10-14 23:00 UTC = 2026-10-15 00:00 Lagos.
+  const LIVE_SYNC_START_MS = Date.parse("2026-10-14T23:00:00Z");
+
   return records
     .filter(
       function(record) {
 
         return (
-          record.status === "PENDING" ||
-          record.status === "VERIFYING" ||
-          record.status === "BUSY"
+          Number(record.capturedAtMs || 0) >= LIVE_SYNC_START_MS &&
+          (record.status === "PENDING" ||
+           record.status === "VERIFYING" ||
+           record.status === "BUSY")
         );
       }
     )
