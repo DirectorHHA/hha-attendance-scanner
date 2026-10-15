@@ -316,7 +316,7 @@
     <h1>HAMD HOUSE ACADEMY</h1>
     <p>Student & Staff Attendance</p>
     <div class="version">
-      Reliable Scanner v2.7 — Live Queue Recovery
+      Reliable Scanner v2.8 — Registry Filters & Historical Archive
     </div>
   </div>
 
@@ -3408,6 +3408,59 @@ navigator.onLine
 // REGISTRY DIAGNOSTIC VIEW
 // ====================================================
 
+// Archive ONLY the thirteen unresolved transactions from 13–14 October 2026.
+// The records remain in IndexedDB and in all future scanner backups.
+async function archiveHistoricalPendingScans() {
+  if (!db) { alert("Scanner registry is unavailable."); return; }
+  if (syncWorkerRunning) { alert("Please wait for synchronisation to finish."); return; }
+  const start = Date.parse("2026-10-12T23:00:00Z"); // 13 Oct 00:00 Lagos
+  const end = Date.parse("2026-10-14T23:00:00Z");   // 15 Oct 00:00 Lagos
+  const unresolvedStatuses = ["PENDING", "VERIFYING", "BUSY"];
+  try {
+    const all = await getAllLocalTransactions();
+    const matches = all.filter(function(r) {
+      const ms = Number(r.capturedAtMs || 0);
+      return ms >= start && ms < end && unresolvedStatuses.includes(r.status);
+    });
+    if (matches.length !== 13) {
+      alert("No changes made. Expected exactly 13 historical pending scans, but found " + matches.length + ". Please review before archiving.");
+      return;
+    }
+    if (!confirm("Archive exactly 13 unresolved scans captured 13–14 October?\n\nTheir full details will remain in the scanner registry and backups. No attendance records will be deleted.")) return;
+    // Recheck the current status of every record before changing anything.
+    const current = await getAllLocalTransactions();
+    const stillMatches = current.filter(function(r) {
+      const ms = Number(r.capturedAtMs || 0);
+      return ms >= start && ms < end && unresolvedStatuses.includes(r.status);
+    });
+    if (stillMatches.length !== 13 || stillMatches.some(function(r) {
+      return !matches.some(function(m) { return m.transactionId === r.transactionId; });
+    })) { alert("Registry changed during review. Nothing archived. Please try again."); return; }
+    const archivedAt = new Date().toISOString();
+    await new Promise(function(resolve, reject) {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      stillMatches.forEach(function(r) {
+        store.put(Object.assign({}, r, {
+          status: "ARCHIVED", archivedAt: archivedAt,
+          archiveReason: "Historical unresolved transaction; administrator-approved archival 15 Oct 2026",
+          previousStatus: r.status, updatedAt: archivedAt
+        }));
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = function() { reject(tx.error || new Error("Archive failed")); };
+      tx.onabort = function() { reject(tx.error || new Error("Archive aborted")); };
+    });
+    await updateRegistryCounts();
+    registryCategoryFilter = "ALL";
+    document.getElementById("registryDetails").style.display = "none";
+    alert("13 historical transactions archived. Their records remain available under VIEW REGISTRY DETAILS and in backups.");
+  } catch (error) {
+    console.error("Historical archive error:", error);
+    alert("Archive could not be completed. Please contact the administrator.");
+  }
+}
+
 let registryCategoryFilter = "ALL";
 
 async function showAllRegistryDetails() {
@@ -3464,6 +3517,15 @@ async function toggleRegistryDetails() {
     const filteredRecords = records.filter(function(record) {
       if (registryCategoryFilter === "ALL") return true;
       if (registryCategoryFilter === "PENDING") return ["PENDING", "VERIFYING", "BUSY"].includes(record.status);
+      if (registryCategoryFilter === "SYNCED") {
+        if (record.status !== "SYNCED") return false;
+        const lagosDay = function(ms) {
+          return new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit"
+          }).format(new Date(ms));
+        };
+        return Number(record.capturedAtMs || 0) > 0 && lagosDay(record.capturedAtMs) === lagosDay(Date.now());
+      }
       return record.status === registryCategoryFilter;
     });
 
